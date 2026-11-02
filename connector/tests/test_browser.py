@@ -64,12 +64,12 @@ def test_studio_loads_a_pull_through_the_panel(cfg, dataset):
             errors: list[str] = []
             page.on("pageerror", lambda e: errors.append(str(e)))
             page.goto(base + "/", wait_until="load")
-            page.wait_for_selector("#btnTenable", timeout=30000)
+            page.wait_for_selector("#btnConnector", timeout=30000)
             # the connector script tag is gone from the DOM and from the Studio's captured source
             assert page.evaluate("document.querySelector('script[data-trs-connector]')") is None
             assert page.evaluate("SELF_SOURCE.includes('connector.js')") is False
             assert page.evaluate("typeof TRS_CONNECTOR === 'object'")
-            page.click("#btnTenable")
+            page.click("#btnConnector")
             page.wait_for_selector("#trsLoad:not([disabled])", timeout=30000)
             assert "Security Center 6.9.0" in page.inner_text("#tenableHost") or "6.9.0" in page.inner_text("#tenableHost")
             page.click("#trsLoad")
@@ -98,7 +98,7 @@ def test_studio_loads_a_pull_through_the_panel(cfg, dataset):
                 assert reg["present"] and len(reg["items"]) == expect["findings"]
             # the HTML report built by the Studio is a plain Studio file: no connector script, data embedded
             report = page.evaluate("buildHtmlReport()")
-            assert "connector.js" not in report and 'id="trs-data"' in report and "STUDIO_VERSION = '4.7'" in report
+            assert "connector.js" not in report and 'id="trs-data"' in report and "STUDIO_VERSION = '4.8'" in report
             # the Studio opened from the report mode must not show the panel: the report mode flag hides the button
             # (the report never contains the script, so simply check the empty-state hint is gone now)
             assert page.evaluate("document.querySelector('#emptyState').hidden") is True

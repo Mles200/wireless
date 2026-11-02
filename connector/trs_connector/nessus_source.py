@@ -36,12 +36,15 @@ class NessusError(Exception):
 
 
 class NessusClient:
-    def __init__(self, url: str, access_key: str, secret_key: str, verify: bool | str = False, timeout: float = 600.0):
+    def __init__(self, url: str, access_key: str, secret_key: str, verify: bool | str = False, timeout: float = 600.0, request_interval: float = 0.75, retries: int = 3, poll_interval: float = 3.0):
         if not url:
             raise NessusError("Nessus URL is not configured")
         if not access_key or not secret_key:
             raise NessusError("Nessus API keys are not configured (nessus.access_key / nessus.secret_key)")
         self._http = httpx.Client(base_url=url.rstrip("/") + "/", headers={"X-ApiKeys": f"accessKey={access_key}; secretKey={secret_key}", "Accept": "application/json"}, verify=verify, timeout=timeout)
+        from .sc_client import Pacer
+        self.pacer = Pacer(request_interval, retries)
+        self.poll_interval = max(3.0, float(poll_interval))
 
     def close(self) -> None:
         self._http.close()
@@ -54,9 +57,11 @@ class NessusClient:
 
     def _req(self, method: str, path: str, **kw) -> httpx.Response:
         try:
-            resp = self._http.request(method, path.lstrip("/"), **kw)
+            resp = self.pacer.run(lambda: self._http.request(method, path.lstrip("/"), **kw), f"{method} {path}")
         except httpx.HTTPError as e:
             raise NessusError(f"{method} {path}: {e.__class__.__name__}: {e}") from e
+        except Exception as e:   # noqa: BLE001 - the pacer raises SCError on exhausted retries
+            raise NessusError(str(e)) from e
         if resp.status_code in (401, 403):
             raise NessusError(f"{method} {path}: HTTP {resp.status_code} (check the API keys): {resp.text[:200]}")
         if resp.status_code >= 400:
@@ -82,11 +87,12 @@ class NessusClient:
     def scan_details(self, scan_id: int) -> dict:
         return self.get_json(f"scans/{scan_id}")
 
-    def export_nessus(self, scan_id: int, poll: float = 2.0, max_wait: float = 3600.0) -> bytes:
+    def export_nessus(self, scan_id: int, poll: float | None = None, max_wait: float = 3600.0) -> bytes:
         token = self.post_json(f"scans/{scan_id}/export", {"format": "nessus"})
         file_id = token.get("file")
         if not file_id:
             raise NessusError(f"scan {scan_id}: export did not return a file id ({token})")
+        poll = max(self.poll_interval, poll or 0.0)   # the status poll is the one place a client can nag a server
         waited = 0.0
         while True:
             st = self.get_json(f"scans/{scan_id}/export/{file_id}/status")
@@ -263,7 +269,7 @@ def pull_nessus(cfg: Config, store: ExportStore, progress: PullProgress, client:
     try:
         progress.set("connect", f"Connecting to Nessus at {ncfg.url}")
         if client is None:
-            client = NessusClient(ncfg.url, ncfg.access_key, ncfg.secret_key, verify=ncfg.verify, timeout=ncfg.timeout)
+            client = NessusClient(ncfg.url, ncfg.access_key, ncfg.secret_key, verify=ncfg.verify, timeout=ncfg.timeout, request_interval=ncfg.request_interval, retries=ncfg.retries, poll_interval=ncfg.poll_interval)
         props = client.properties()
         manifest["source"]["version"] = props.get("server_version") or props.get("nessus_ui_version")
         manifest["source"]["product"] = props.get("nessus_type")

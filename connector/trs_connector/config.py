@@ -32,8 +32,10 @@ class SecurityCenterConfig:
     compliance_severities: str = "0,1,2,3,4"   # compliance export: Info (passed), Medium (warning), High (failed)
     include_inventory: bool = True     # add the Info rows of the inventory plugins so hosts without findings stay listed
     inventory_plugins: list = field(default_factory=lambda: list(INVENTORY_PLUGINS))
-    page_size: int = 2500              # vulnerability rows per analysis page
-    compliance_page_size: int = 1000   # compliance rows carry long plugin output; smaller pages
+    page_size: int = 1000              # vulnerability rows per analysis page (each page is a database query on Security Center)
+    compliance_page_size: int = 500    # compliance rows carry long plugin output; smaller pages
+    request_interval: float = 0.75     # seconds between two requests (one request at a time, always)
+    retries: int = 3                   # retries with exponential backoff on 429 / 502 / 503 / 504 and timeouts (Retry-After honoured)
     sort_field: str = ""               # optional sortField for the analysis query (e.g. "pluginID")
     extra_filters: list = field(default_factory=list)   # [{filterName, operator, value}] added to the vulnerability query
     exclude_was: bool = True           # add wasVuln = excludeWas (web application scanning findings) like pyTenable does
@@ -54,6 +56,9 @@ class NessusConfig:
     folder: str = ""                   # folder name; empty = all folders
     max_age_days: int = 45             # only scans completed within this many days
     export_chunk: int = 1 << 20
+    request_interval: float = 0.75     # seconds between two requests
+    retries: int = 3
+    poll_interval: float = 3.0         # seconds between two export-status polls (never faster)
 
 
 @dataclass
@@ -188,8 +193,10 @@ sc:                                   # Tenable Security Center (REST API, norma
   repositories: []                    # names or ids; empty = all repositories (the Studio removes cross-repository duplicates)
   severities: "4,3,2,1"               # vulnerability export: Critical to Low
   include_inventory: true             # add the Info rows of the inventory plugins so hosts with no findings stay listed
-  page_size: 2500
-  compliance_page_size: 1000
+  page_size: 1000                     # rows per analysis page; every page is a database query on Security Center
+  compliance_page_size: 500
+  request_interval: 0.75              # seconds between requests (one request at a time, always)
+  retries: 3                          # backoff on 429 / 502 / 503 / 504 and timeouts
 
 nessus:                               # optional: Nessus / Nessus Manager on port 8834, used when Security Center is not the source
   enabled: false

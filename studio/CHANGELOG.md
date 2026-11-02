@@ -1,5 +1,13 @@
 # Tenable Report Studio — changelog
 
+## 4.8 (2 Nov 2026)
+
+Built by `tools/build_tenable.py`: the Tenable Pull engine and panel are inlined before `</body>` (markers `trs-tenable:start/end`, replaced on every build); no other line of the Studio changed.
+
+- **Tenable** button (and "Load from Tenable" on the empty state): pulls the exports straight from Security Center (REST API, API keys or session login) or Nessus (port 8834) with one paced request at a time and loads them through the Studio's own file path, exactly like dropped exports. Options: severities, inventory rows, compliance, repositories or scans, pacing and page sizes, a previous export for Nessus first-seen dates.
+- Receives the files sent by `Tenable_Pull.html` ("Open the Studio and load these files") from the window that opened it.
+- The HTML report and the archive copy carry the panel code; it is inert in the report (report mode).
+
 ## 4.7 (2 Nov 2026)
 
 Applied with `tools/patch_studio.py` (exact replacements, verifiable with `--check`); findings from `docs/REVIEW.md`.

@@ -1,28 +1,19 @@
 # Roadmap
 
-What exists now: the Studio v4.7 and the connector v0.1 (scheduled pulls from Security Center or Nessus, Studio-ready exports with the audit data, the hosted Studio with the Tenable panel, shared settings and register, tests). The items below are ordered by value to the weekly process; none is started.
+What exists now: the Studio v4.8 with the Tenable button, the lightweight Tenable Pull tool, the engine's tests, and the optional connector service. Ordered by value to the weekly process; none is started.
 
-## Phase 2 — automate the report itself
+## Next
 
-1. **Server-side report generation.** The Studio builds the Excel, the PDF and the HTML report in the browser; the connector can drive the hosted Studio headless (Playwright is already used by the tests) right after the weekly pull and drop the outputs and an archive folder next to the pull. The Monday report would be waiting in the store, and could be e-mailed or posted to Teams.
-2. **Pull notifications.** A message (e-mail / Teams webhook) when a scheduled pull fails or when the export counts move more than a threshold against the previous pull (a repository that stopped syncing, a scan that did not run).
-3. **Trend across every pull.** The Studio compares the loaded exports; the connector holds all of them. A trend endpoint (open findings by severity per pull, hosts seen, new and fixed) and a small chart in the panel would give the quarter view without loading twelve files.
+1. **First run against the real Security Center.** Decide where the file runs (`docs/TENABLE_PULL.md` §3), create the service account keys, pull, and send back `manifest.json`: its `mapping` shows which fields the real Security Center returned, so the few unverified column names (EPSS, Security End of Life, Host ID, Agent ID, rule comments) can be confirmed or corrected in `studio/src/tenable_pull.js`.
+2. **Pull history in the tool.** Keep the last pulls' summaries and files in the browser (IndexedDB) so the previous export is one click away for the trend, Validate fixes and the register, without a Downloads folder.
+3. **Self-hosted fonts** in the Studio and the tool (review F4), making both files genuinely offline.
+4. **Worker-based parsing with progress** in the Studio (review F5) and, in the tool, streaming the CSV text straight into the Studio without the second copy in memory.
 
-## Phase 3 — close the loop with Security Center
+## Later
 
-4. **Push risk overrides as Recast Risk rules.** An override in the Risk tab could create the corresponding Recast Risk rule in Security Center (with the note as the comment), so the register and Tenable never disagree. Needs a write-capable API key and a confirmation step; M ruled on 22 Oct that decisions live in Tenable, which this respects.
-5. **Internet-facing hosts from an asset list.** Fill the Studio's "Internet-facing hosts" from a Security Center asset list (`/rest/asset`) instead of a hand-kept list.
-6. **Mitigated source.** Read the `patched` source (Tenable's own Mitigated view) at every pull, for fix dates and the "fixed within timeline" rate the notes mention as a possible ask.
-
-## Phase 4 — the Studio
-
-7. **Worker-based parsing with progress** (review F5) and no second read of the raw file for the Excel source sheets.
-8. **Self-hosted fonts** from the embedded TTFs (review F4), making the file genuinely offline.
-9. **Source parts in the repository** and the QA scripts (`test/qa.py`, `test/xlsx_strict.py`) next to them, so a change is a diff, not a 4 MB file.
-10. **Keyboard and focus handling** of the dialogs (review F13).
-
-## Platform
-
-11. **Authentication:** LDAP / SSO in front of the connector (reverse proxy with the corporate IdP) instead of one shared basic-auth password; per-user attribution of register changes.
-12. **Tenable Vulnerability Management (cloud)** as a third source if the estate moves; the export schema is already the integration point.
-13. **Packaging:** a container image and a Windows service wrapper, for sites without a Linux VM.
+5. **Push risk overrides as Recast Risk rules** from the Studio's Risk tab (write access, confirmation step), so the register and Tenable never disagree.
+6. **Internet-facing hosts from a Security Center asset list** instead of a hand-kept list.
+7. **Mitigated source** (`sourceType: patched`) for fix dates and the "fixed within timeline" rate.
+8. **Scheduled pulls without a person**: the optional connector, or a scheduled task that runs the Studio headless on a workstation.
+9. **Source parts of the Studio in the repository** and the QA scripts next to them, so every change is a diff.
+10. **Tenable Vulnerability Management (cloud)** as a third source; the export schema is the integration point.

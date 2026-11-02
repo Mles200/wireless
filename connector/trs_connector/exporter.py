@@ -97,7 +97,7 @@ def pull_security_center(cfg: Config, store: ExportStore, progress: PullProgress
     try:
         progress.set("connect", f"Connecting to Security Center at {sc.url}")
         if client is None:
-            client = SecurityCenterClient(sc.url, sc.access_key, sc.secret_key, verify=sc.verify, timeout=sc.timeout)
+            client = SecurityCenterClient(sc.url, sc.access_key, sc.secret_key, verify=sc.verify, timeout=sc.timeout, request_interval=sc.request_interval, retries=sc.retries)
         system = client.system()
         manifest["source"]["version"] = system.get("version")
         manifest["source"]["build"] = system.get("buildID")
@@ -166,8 +166,10 @@ def pull_security_center(cfg: Config, store: ExportStore, progress: PullProgress
 
         finished = datetime.now(timezone.utc)
         manifest.update({"status": "ok", "finished": finished.isoformat(), "finished_ts": finished.timestamp(), "duration_s": round((finished - started).total_seconds(), 1)})
+        manifest["transport"] = dict(client.pacer.stats, interval=client.pacer.interval, text=client.pacer.describe())
         manifest["summary"] = summarize(manifest)
         store.write_manifest(pull_id, manifest)
+        progress.set("done", f"Load on the server: {client.pacer.describe()}")
         if cfg.store.retention_days:
             removed = store.cleanup(cfg.store.retention_days)
             if removed:

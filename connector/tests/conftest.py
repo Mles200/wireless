@@ -72,6 +72,7 @@ def cfg(mock_sc, tmp_path) -> Config:
     c.sc.access_key, c.sc.secret_key = "AK", "SK"
     c.sc.page_size = 300           # several pages
     c.sc.compliance_page_size = 150
+    c.sc.request_interval = 0.05   # the pacing itself is tested in test_pacing.py; keep the other tests quick
     c.store.dir = str(tmp_path / "data")
     c.schedule.enabled = False
     c.studio.path = str(STUDIO)

@@ -21,19 +21,42 @@ def error(code: int, msg: str, status: int = 403) -> JSONResponse:
     return JSONResponse({"type": "regular", "response": "", "error_code": code, "error_msg": msg, "warnings": [], "timestamp": int(time.time())}, status_code=status)
 
 
-def create_mock_app(data: dict, access_key: str = "ak", secret_key: str = "sk", reject_filters: tuple = (), max_page: int = 100000) -> FastAPI:
+def create_mock_app(data: dict, access_key: str = "ak", secret_key: str = "sk", reject_filters: tuple = (), max_page: int = 100000,
+                    allow_cors: bool = False, rate_limit_every: int = 0) -> FastAPI:
+    """allow_cors: answer like a Security Center whose Apache was given the CORS headers (lets a
+    browser page read the API).  rate_limit_every: every Nth analysis request is refused with
+    HTTP 429 and Retry-After: 0, to exercise the clients' backoff."""
     app = FastAPI(title="mock Security Center")
     app.state.data = data
     app.state.calls: list[dict] = []
+    app.state.analysis_requests = 0
+    app.state.rate_limited = 0
     rejected = set(reject_filters)
+    cors_headers = {"Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "X-APIKey, X-ApiKeys, X-SecurityCenter, Content-Type, Accept",
+                    "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS", "Access-Control-Expose-Headers": "Retry-After", "Access-Control-Max-Age": "600"}
 
     @app.middleware("http")
     async def auth(request: Request, call_next):
+        if allow_cors and request.method == "OPTIONS":
+            from fastapi.responses import Response
+            return Response(status_code=204, headers=cors_headers)
         hdr = request.headers.get("x-apikey", "")
         pairs = dict(p.strip().split("=", 1) for p in hdr.split(";") if "=" in p)
         if pairs.get("accessKey") != access_key or pairs.get("secretKey") != secret_key:
-            return error(2, "Invalid API key", 403)
-        return await call_next(request)
+            resp = error(2, "Invalid API key", 403)
+        elif rate_limit_every and request.url.path == "/rest/analysis" and request.method == "POST":
+            app.state.analysis_requests += 1
+            if app.state.analysis_requests % rate_limit_every == 0:
+                app.state.rate_limited += 1
+                resp = JSONResponse({"error": "too many requests"}, status_code=429, headers={"Retry-After": "0"})
+            else:
+                resp = await call_next(request)
+        else:
+            resp = await call_next(request)
+        if allow_cors:
+            for k, v in cors_headers.items():
+                resp.headers[k] = v
+        return resp
 
     @app.get("/rest/system")
     async def system():

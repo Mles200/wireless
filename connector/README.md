@@ -12,4 +12,12 @@ trs-connector serve         # the Studio, the API and the weekly schedule
 trs-connector list          # the pulls in the store
 ```
 
-Documentation: `../docs/ARCHITECTURE.md`, `../docs/DEPLOYMENT.md`. Tests: `pip install -e .[test] && pytest`.
+Optional: the lightweight tool (`../studio/Tenable_Pull.html`) and the Studio's Tenable button do the same pull from the browser with nothing to install; this service is for scheduled, unattended pulls.
+
+The client sends one request at a time, `sc.request_interval` seconds apart (0.75 by default), with retries and exponential backoff on 429 / 502 / 503 / 504 (Retry-After honoured); page sizes default to 1,000 vulnerability rows and 500 compliance rows.
+
+Documentation: `DEPLOYMENT.md` (install on the VM), `../docs/ARCHITECTURE.md` section 2. Tests: `pip install -e .[test] && pytest`.
+
+| The connector panel in the Studio | The Studio after loading a pull | The Risk tab |
+|---|---|---|
+| ![panel](../docs/img/connector-panel.png) | ![dashboard](../docs/img/connector-dashboard.png) | ![risk](../docs/img/connector-risk-tab.png) |

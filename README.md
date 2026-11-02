@@ -1,60 +1,50 @@
 # Tenable Report Studio
 
-Weekly vulnerability-assessment and CIS-compliance reporting for ALTANFEETHI from Tenable Security Center.
+Weekly vulnerability-assessment and CIS-compliance reporting for ALTANFEETHI from Tenable Security Center, with nothing to install: two HTML files.
 
-- **The Studio** (`studio/ALTANFEETHI_Tenable_Report_Studio.html`, v4.7): a single-file browser tool that turns Security Center exports into the Excel workbooks (hosts, network), the PDF and the self-contained HTML report, validates fixes between two exports and keeps a residual-risk register. Runs from a folder, nothing leaves the browser.
-- **The connector** (`connector/`, new): a small Python service for the Tenable VM. It pulls the same data from Security Center (REST API) or Nessus (port 8834) on a weekly schedule or on demand, keeps every pull as Studio-ready export files with the Accept/Recast Risk rules and the scan results of that moment, and serves the Studio on port 8000 with a **Tenable** panel that loads a pull straight into it. Report settings and the risk register are kept on the server, shared by the team.
+- **Tenable Pull** (`studio/Tenable_Pull.html`): the lightweight tool. Enter the endpoint and the service account's API keys, check the connection, pull. It fetches the vulnerability rows (Critical to Low, plus the inventory rows that keep hosts without findings listed), the compliance rows, the Accept/Recast Risk rules and the recent scans straight from the Security Center REST API (or from Nessus on port 8834), one paced request at a time, and produces the two CSV files in the Security Center export layout. Download them, or "Open the Studio and load these files".
+- **The Studio** (`studio/ALTANFEETHI_Tenable_Report_Studio.html`, v4.8): the report tool (Excel workbooks, PDF, HTML report, Validate fixes, risk register), now with a **Tenable** button that does the same pull inside the Studio and loads the files directly.
+- Optional, not needed for the above: `connector/`, a small service for scheduled pulls (see `connector/`).
 
-```
-workstation ──:8000──▶ connector (Tenable VM) ──:443──▶ Security Center
-   browser            Studio + Tenable panel   ──:8834─▶ Nessus / Nessus Manager (optional source)
-```
+| Tenable Pull | After the pull | The Studio's Tenable button |
+|---|---|---|
+| ![Tenable Pull](docs/img/tenable-pull.png) | ![Result](docs/img/tenable-pull-result.png) | ![Studio](docs/img/studio-tenable.png) |
+
+## Use
+
+1. Create API keys for a read-only Security Center user (Users → the user → Generate API Keys; API keys must be allowed under Settings → Configuration → Security). Nessus: My Account → API Keys.
+2. Open `Tenable_Pull.html` (or the Studio and click **Tenable**), enter the endpoint and the keys, **Check connection**, **Pull**.
+3. Load the files into the Studio (one click from the tool, or drop the CSVs) and build the report as usual.
+
+**One thing to decide first: where the file runs.** A page may only read another server's answers when that server allows it (CORS), and Security Center and Nessus do not by default; the tool tells you precisely when that is the case. The options, in order of preference: serve the two HTML files from the Security Center web root (same origin, nothing to allow), add the CORS headers to the Security Center Apache configuration, or use a dedicated browser profile for this tool only. `docs/TENABLE_PULL.md` has the exact steps.
+
+**Not breaking Security Center.** Every analysis page is a database query, so the tool sends one request at a time, waits between requests (Gentle 2 s, Normal 0.75 s, Fast 0.15 s), uses moderate pages (1,000 / 500 rows), times a request out after 2 minutes and backs off on 429 / 503 (honouring Retry-After). The result shows the request count and the time the server spent. The same pacing is built into the optional connector.
 
 ## Repository layout
 
 | Path | What |
 |---|---|
-| `studio/` | the Studio and its `CHANGELOG.md` |
-| `connector/` | the service (`trs_connector` package), its tests and deployment files |
-| `tools/patch_studio.py` | the v4.7 changes to the Studio as exact, verifiable patches |
+| `studio/Tenable_Pull.html` | the lightweight tool (built) |
+| `studio/ALTANFEETHI_Tenable_Report_Studio.html` | the Studio v4.8 (built: v4.7 fixes plus the Tenable panel) |
+| `studio/src/` | the engine (`tenable_pull.js`), the tool's page template, the Studio panel glue, the engine's unit tests |
+| `tools/build_tenable.py` | builds both HTML files from `studio/src/`; `--check` verifies them |
+| `tools/patch_studio.py` | the v4.7 fixes to the Studio as exact, verifiable patches |
+| `docs/TENABLE_PULL.md` | set-up, where to run the file, pacing, troubleshooting |
 | `docs/REVIEW.md` | the application review of v4.6: architecture, strengths, findings, recommendations |
-| `docs/ARCHITECTURE.md` | how the connector works and how it hooks into the Studio |
-| `docs/DEPLOYMENT.md` | installing on the VM: API keys, config, systemd, firewall, TLS, first run |
+| `docs/ARCHITECTURE.md` | how the pull works and how it hooks into the Studio |
 | `docs/ROADMAP.md` | what comes next |
 | `docs/PROJECT_NOTES.md` | the running notes delivered with the Studio (history, decisions, QA) |
-
-## Screenshots (demo data)
-
-| The Tenable panel | The Studio after loading a pull | The Risk tab |
-|---|---|---|
-| ![Tenable panel](docs/img/tenable-panel.png) | ![Dashboard](docs/img/dashboard-loaded.png) | ![Risk tab](docs/img/risk-tab.png) |
-
-## Try it in five minutes, without Tenable
-
-```bash
-cd connector
-python3 -m venv .venv && . .venv/bin/activate
-pip install -e .
-trs-connector demo
-```
-
-Open <http://127.0.0.1:8000/>, click **Tenable**, **Pull now**, then **Load selected pull**. The demo runs a synthetic Security Center (60 hosts following the ALTANFEETHI segmentation rules) next to the connector.
-
-## Against your Security Center
-
-```bash
-trs-connector init-config /etc/trs-connector/config.yaml    # edit: sc.url and the API keys, server.auth
-trs-connector --config /etc/trs-connector/config.yaml probe  # connection, repositories, field mapping, row counts
-trs-connector --config /etc/trs-connector/config.yaml pull   # one pull, written to the store
-trs-connector --config /etc/trs-connector/config.yaml serve  # the Studio on :8000 and the weekly schedule
-```
-
-`docs/DEPLOYMENT.md` has the complete procedure, including the systemd unit in `connector/deploy/`.
+| `connector/` | optional service for scheduled pulls, with its own README, `DEPLOYMENT.md` and tests |
 
 ## Tests
 
 ```bash
-cd connector && pip install -e .[test] && pytest
+node --test studio/src/tenable_pull.test.mjs             # the engine: CSV, dates, ids, pacing and retries with a fake fetch
+cd connector && pip install -e .[test] && pytest        # 25 tests, including the browser runs
 ```
 
-19 tests: the Security Center client and the pull against a mock Security Center (paging, filters, an older version rejecting a filter, bad keys), the export column fidelity with the Studio's own alias table, the Nessus source (`.nessus` parsing, first-seen carried forward between pulls), the HTTP service (authentication, downloads, shared state), and an end-to-end run in Chromium: the Studio served by the connector loads a pull through the panel and shows exactly the figures an independent recount of the synthetic data predicts.
+The browser tests open `Tenable_Pull.html` from a folder in Chromium against a synthetic Security Center that allows the page (CORS) and refuses every 7th analysis request with HTTP 429: the pull completes with the figures an independent recount predicts, the files are handed over to the Studio, the Studio's own Tenable button pulls and loads, and a server that does not allow the page produces the explanatory message.
+
+## Changing the tool
+
+Edit `studio/src/tenable_pull.js` (engine and shared panel), `studio/src/Tenable_Pull.template.html` (the standalone page) or `studio/src/studio_panel.js` (the Studio button), then `python3 tools/build_tenable.py`. The Studio keeps its own code untouched apart from the v4.7 fixes; the panel is an inline block before `</body>` that the build replaces.

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import logging
 import re
+import threading
 import time
 from typing import Any, Callable, Iterator
 
@@ -28,8 +29,76 @@ class SCError(Exception):
 INVALID_FILTER_RE = re.compile(r"The filter '([^']+)' is invalid")
 
 
+RETRY_STATUSES = {429, 502, 503, 504}
+
+
+class Pacer:
+    """One request at a time, at least ``interval`` seconds apart, with retries and exponential
+    backoff (Retry-After honoured) on 429 / 502 / 503 / 504 and on timeouts: the analysis
+    endpoint runs a database query per page, so a client must never hammer it."""
+
+    def __init__(self, interval: float = 0.75, retries: int = 3, max_backoff: float = 60.0):
+        self.interval = max(0.0, float(interval))
+        self.retries = max(0, int(retries))
+        self.max_backoff = max_backoff
+        self._last_end = 0.0
+        self._lock = threading.Lock()
+        self.stats = {"requests": 0, "retries": 0, "waited_s": 0.0, "busy_s": 0.0, "slowest_s": 0.0}
+
+    def run(self, send: Callable[[], httpx.Response], label: str = "") -> httpx.Response:
+        with self._lock:                      # concurrency 1, whatever the caller does
+            for attempt in range(self.retries + 1):
+                gap = self._last_end + self.interval - time.monotonic()
+                if gap > 0:
+                    self.stats["waited_s"] += gap
+                    time.sleep(gap)
+                t0 = time.monotonic()
+                failure: Exception | None = None
+                resp: httpx.Response | None = None
+                try:
+                    resp = send()
+                except httpx.TimeoutException as e:
+                    failure = e
+                finally:
+                    self._last_end = time.monotonic()
+                    took = self._last_end - t0
+                    self.stats["requests"] += 1
+                    self.stats["busy_s"] += took
+                    self.stats["slowest_s"] = max(self.stats["slowest_s"], took)
+                if failure is not None:
+                    if attempt < self.retries:
+                        wait = self._backoff(attempt)
+                        self.stats["retries"] += 1
+                        log.warning("%s timed out; retrying in %.0f s (%d/%d)", label, wait, attempt + 1, self.retries)
+                        time.sleep(wait)
+                        continue
+                    raise SCError(f"{label}: no answer within the timeout after {self.retries} retries ({failure.__class__.__name__})") from failure
+                assert resp is not None
+                if resp.status_code in RETRY_STATUSES and attempt < self.retries:
+                    ra = resp.headers.get("retry-after")
+                    try:
+                        wait = min(float(ra), 120.0) if ra is not None else self._backoff(attempt)
+                    except ValueError:
+                        wait = self._backoff(attempt)
+                    self.stats["retries"] += 1
+                    log.warning("%s: HTTP %s; waiting %.0f s before retrying (%d/%d)", label, resp.status_code, wait, attempt + 1, self.retries)
+                    time.sleep(wait)
+                    continue
+                return resp
+        raise AssertionError("unreachable")
+
+    def _backoff(self, attempt: int) -> float:
+        import random
+        return min(self.max_backoff, 2.0 * (2 ** attempt)) * (0.75 + random.random() * 0.5)
+
+    def describe(self) -> str:
+        s = self.stats
+        return (f"{s['requests']} requests, one at a time, {self.interval:.2f} s apart ({s['waited_s']:.0f} s paused, {s['busy_s']:.0f} s waiting for the server, "
+                f"slowest {s['slowest_s']:.1f} s{', ' + str(s['retries']) + ' retries' if s['retries'] else ''})")
+
+
 class SecurityCenterClient:
-    def __init__(self, url: str, access_key: str, secret_key: str, verify: bool | str = False, timeout: float = 600.0):
+    def __init__(self, url: str, access_key: str, secret_key: str, verify: bool | str = False, timeout: float = 600.0, request_interval: float = 0.75, retries: int = 3):
         if not url:
             raise SCError("Security Center URL is not configured")
         if not access_key or not secret_key:
@@ -43,6 +112,7 @@ class SecurityCenterClient:
             headers={"X-APIKey": f"accessKey={access_key}; secretKey={secret_key}", "Accept": "application/json"},
             verify=verify, timeout=timeout, follow_redirects=False,
         )
+        self.pacer = Pacer(request_interval, retries)
 
     # ---- plumbing ---------------------------------------------------------------------------
     def close(self) -> None:
@@ -56,9 +126,11 @@ class SecurityCenterClient:
 
     def _call(self, method: str, path: str, **kw) -> Any:
         try:
-            resp = self._http.request(method, path.lstrip("/"), **kw)
+            resp = self.pacer.run(lambda: self._http.request(method, path.lstrip("/"), **kw), f"{method} {path}")
         except httpx.HTTPError as e:
             raise SCError(f"{method} {path}: {e.__class__.__name__}: {e}") from e
+        if resp.status_code == 429:
+            raise SCError(f"{method} {path}: HTTP 429, Security Center is rate limiting this client; raise sc.request_interval or lower the page sizes", 429)
         if resp.status_code in (401, 403):
             raise SCError(f"{method} {path}: HTTP {resp.status_code} (check the API keys and the user's permissions): {resp.text[:300]}", resp.status_code)
         if resp.status_code >= 400:

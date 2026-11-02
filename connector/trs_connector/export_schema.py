@@ -186,10 +186,21 @@ def severity_name(rec: dict) -> str:
     return str(field(rec, "severity.name") or "Info")
 
 
-def resolve_mapping(rec: dict) -> dict[str, str | None]:
-    """Which record field each export column came from, for ``trs-connector probe``."""
-    out: dict[str, str | None] = {}
+def _has_field(rec: dict, path: str) -> bool:
+    cur: Any = rec
+    for part in path.split("."):
+        if not isinstance(cur, dict) or part not in cur:
+            return False
+        cur = cur[part]
+    return True
+
+
+def resolve_mapping(rec: dict, prev: dict | None = None) -> dict[str, str | None]:
+    """Which record field each export column comes from, by key presence (an empty value is
+    still a present field), merged over the records it is called with; for ``trs-connector probe``."""
+    out: dict[str, str | None] = dict(prev or {})
     for header, _key, candidates, _kind in COLUMNS:
-        hit = next((c for c in candidates if first_field(rec, [c]) is not None), None)
-        out[header] = hit
+        if out.get(header):
+            continue
+        out[header] = next((c for c in candidates if _has_field(rec, c)), None)
     return out

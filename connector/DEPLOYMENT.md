@@ -1,4 +1,6 @@
-# Deployment on the Tenable VM
+# Connector deployment on the Tenable VM (optional)
+
+The lightweight tool and the Studio's Tenable button need none of this; this service is for scheduled, unattended pulls.
 
 The connector runs on the VM that hosts Security Center (or on any Linux VM that can reach it). The workstation only needs port 8000 (the Studio and the API); Security Center is reached locally on 443, Nessus on 8834 when it is the source.
 

@@ -42,6 +42,13 @@ def main(argv: list[str]) -> int:
     out = src
     applied = skipped = 0
     for title, old, new in PATCHES:
+        if title.startswith("version"):   # the version line is owned by tools/build_tenable.py once the Tenable panel is built in
+            import re
+            m = re.search(r"const STUDIO_VERSION = '(\d+)\.(\d+)';", out)
+            if m and (int(m.group(1)), int(m.group(2))) >= (4, 7):
+                skipped += 1
+                print(f"present: {title} (file is {m.group(1)}.{m.group(2)})")
+                continue
         if old in out:
             if out.count(old) != 1:
                 print(f"ERROR: anchor is not unique for: {title}")

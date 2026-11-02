@@ -47,12 +47,12 @@
   function ready(fn) { if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', fn); else fn(); }
   ready(() => {
     if (state.reportMode) return;
-    const btn = document.createElement('button'); btn.className = 'btn ghost'; btn.id = 'btnTenable'; btn.type = 'button'; btn.innerHTML = '<span class="trs-dot" id="trsDot"></span>Tenable';
-    btn.title = 'Exports pulled from Tenable by the connector: load the latest, pull a fresh one, see the risk acceptances and the recent scans';
-    const anchor = $('#btnAddFiles'); if (anchor) anchor.after(btn); else $('.actions').prepend(btn);
+    const btn = document.createElement('button'); btn.className = 'btn ghost'; btn.id = 'btnConnector'; btn.type = 'button'; btn.innerHTML = '<span class="trs-dot" id="trsDot"></span>' + (window.TRS_TENABLE ? 'Connector pulls' : 'Tenable');
+    btn.title = 'Exports pulled from Tenable by the connector service: load the latest, pull a fresh one, see the risk acceptances and the recent scans';
+    const anchor = $('#btnTenable') || $('#btnAddFiles'); if (anchor) anchor.after(btn); else $('.actions').prepend(btn);
     btn.onclick = openPanel;
     const how = $('#emptyState .how');
-    if (how) { const p = document.createElement('p'); p.className = 'trs-conn-hint'; p.innerHTML = '<span>Served by the Tenable connector:</span><button class="btn primary" type="button" id="btnTenableEmpty">Load the latest Tenable pull</button>'; how.before(p); $('#btnTenableEmpty').onclick = () => openPanel(); }
+    if (how) { const p = document.createElement('p'); p.className = 'trs-conn-hint'; p.innerHTML = '<span>Served by the Tenable connector:</span><button class="btn primary" type="button" id="btnConnectorEmpty">Load the latest connector pull</button>'; how.before(p); $('#btnConnectorEmpty').onclick = () => openPanel(); }
     refreshStatus().catch(() => {});
     initSharedState();
   });

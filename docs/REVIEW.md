@@ -8,7 +8,7 @@ The Studio is a single-file browser application that turns Security Center expor
 
 Its limits come from the delivery model rather than the code: everything depends on a person exporting the right CSVs with the right columns each week, the 113 MB compliance file is parsed on the browser's main thread, settings and the risk register live in one browser profile, and nothing records what was accepted in Tenable. Five small code defects were found; four are fixed in v4.7 (this repository), one is a recommendation.
 
-The "next level" built in this repository, the connector, addresses the delivery model: it pulls the same data from Security Center (or Nessus) on a schedule, keeps every pull with its audit data, serves the Studio with a Tenable panel, and makes settings and the register shared.
+The "next level" built in this repository addresses the delivery model without a server: the lightweight Tenable Pull tool and the Studio's own Tenable button (v4.8) pull the same data from Security Center (or Nessus) with the service account's API keys, one paced request at a time, in the export's layout. An optional connector service does the same on a schedule.
 
 ## 2. Architecture and data flow
 
@@ -102,7 +102,7 @@ One 339 KB script with lines of up to 2,000 characters, global functions and a g
 
 ## 6. Recommendations, in order
 
-1. Run the Studio from the connector (this repository): scheduled pulls with the inventory rows, shared settings and register, risk-rule audit trail, no manual export. See `docs/DEPLOYMENT.md`.
+1. Pull from Tenable instead of exporting by hand: the Tenable button of the Studio v4.8 or `Tenable_Pull.html` (inventory rows, risk-rule audit trail, paced requests). Decide where the file runs first (`docs/TENABLE_PULL.md` section 3). The optional connector adds scheduling, shared settings and register.
 2. Adopt v4.7 (F1–F3) and keep the Studio file under version control here; apply future changes through `tools/patch_studio.py` or by committing the source parts.
 3. Self-host the fonts from the embedded TTFs or drop the Google Fonts link (F4).
 4. Move CSV parsing to a worker with a progress notice (F5); consider dropping the raw re-read for the source sheets in favour of the connector's download links.

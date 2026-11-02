@@ -59,7 +59,7 @@ def test_studio_is_served_with_the_connector_script(service):
         assert js.status_code == 200 and "addFiles" in js.text and "javascript" in js.headers["content-type"]
         assert r.headers["cache-control"] == "no-store"
         st = c.get("/api/status").json()
-        assert st["studio"]["version"] == "4.7" and st["latest"] is None and st["source"]["type"] == "sc" and st["connector"]["auth"] is True
+        assert st["studio"]["version"] == "4.8" and st["latest"] is None and st["source"]["type"] == "sc" and st["connector"]["auth"] is True
         assert st["schedule"]["enabled"] is False
 
 

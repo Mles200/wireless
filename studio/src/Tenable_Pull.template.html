@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tenable Pull</title>
+<style>
+/* ALTANFEETHI look (charcoal, copper, sand) shared with the Studio */
+:root{ --bg:#f5f1ea; --surface:#ffffff; --surface-2:#f6f1e8; --ink:#2b2a28; --ink-2:#5b5752; --muted:#8e8882; --line:#e5ddd0; --line-2:#cfc4b3; --brand:#2f2e2c; --brand-2:#a8683b; --brand-ink:#ffffff; --sand:#efe6d8;
+  --good:#0ca30c; --warn:#fab219; --bad:#d03b3b; --font:"IBM Plex Sans","Segoe UI",system-ui,-apple-system,sans-serif; --mono:"IBM Plex Mono",ui-monospace,Consolas,monospace; --shadow:0 1px 2px rgba(43,42,40,.06),0 8px 24px rgba(43,42,40,.07); color-scheme:light; }
+@media (prefers-color-scheme: dark){ :root{ --bg:#1b1a18; --surface:#242321; --surface-2:#2d2b28; --ink:#ebe6dd; --ink-2:#bfb8ab; --muted:#8e8882; --line:#3a3733; --line-2:#4a463f; --sand:#3a3328; --brand:#2f2e2c; color-scheme:dark; } }
+*{box-sizing:border-box} html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);font-size:14px;line-height:1.45}
+.topbar{background:var(--brand);color:var(--brand-ink);display:flex;align-items:center;gap:14px;padding:10px 20px;border-bottom:3px solid var(--brand-2)}
+.topbar .wordmark{font-weight:700;letter-spacing:.06em;font-size:14px;line-height:1.1} .topbar .wordmark small{display:block;font-weight:400;letter-spacing:.02em;opacity:.8;font-size:11px}
+.topbar .title{border-left:1px solid rgba(255,255,255,.2);padding-left:14px;font-weight:600;font-size:16px} .topbar .title small{display:block;font-weight:400;font-size:11.5px;opacity:.8}
+.topbar .spacer{flex:1} .topbar .ver{font-size:11.5px;opacity:.7}
+main{max-width:1100px;margin:0 auto;padding:18px 20px 60px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);padding:16px 18px;margin-bottom:14px}
+.panel h2{margin:0 0 6px;font-size:16px} .panel h2 .hint{font-weight:400;font-size:12px;color:var(--muted);margin-left:8px}
+.panel > p{margin:0 0 10px;color:var(--ink-2);font-size:13px}
+.btn{font:inherit;font-size:13px;padding:7px 12px;border-radius:7px;border:1px solid var(--line-2);background:var(--surface);color:var(--ink);cursor:pointer}
+.btn:hover{border-color:var(--brand-2)} .btn:disabled{opacity:.55;cursor:default}
+.btn.primary{background:var(--brand-2);border-color:var(--brand-2);color:#fff} .btn.sm{padding:4px 9px;font-size:12px}
+.notice{background:var(--sand);border-left:4px solid var(--brand-2);padding:9px 12px;border-radius:6px;font-size:13px;margin-top:8px}
+.notice.good{border-left-color:var(--good)} .notice.bad{border-left-color:var(--bad)}
+.table-wrap{overflow:auto;margin-top:8px}
+table.data{border-collapse:collapse;width:100%;font-size:12.5px;margin-top:8px}
+table.data th{background:var(--surface-2);text-align:left;font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-2);padding:7px 8px;border-bottom:1px solid var(--line-2)}
+table.data td{padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:top} table.data td.num, table.data th.num{text-align:right} .wrap{white-space:normal} .nowrap{white-space:nowrap}
+.help ol{margin:6px 0 0 18px;padding:0} .help li{margin:5px 0} .help code{font-family:var(--mono);font-size:11.5px;background:var(--surface-2);padding:1px 4px;border-radius:3px}
+.help h3{font-size:13.5px;margin:12px 0 4px}
+footer{color:var(--muted);font-size:11.5px;text-align:center;margin-top:20px}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="wordmark">ALTANFEETHI<small>Cybersecurity</small></div>
+  <div class="title">Tenable Pull<small>Security Center / Nessus exports for the Tenable Report Studio, straight from the API</small></div>
+  <div class="spacer"></div>
+  <div class="ver" id="ver"></div>
+</header>
+<main>
+  <section class="panel">
+    <h2>Connection and pull <span class="hint">nothing leaves this computer except the requests to the Tenable endpoint</span></h2>
+    <p>Enter the endpoint and the service account's API keys, check the connection, then pull. The tool fetches the vulnerability rows (Critical to Low, plus the inventory rows that keep hosts without findings listed) and the compliance rows (Info, Medium, High) with the column layout of the Security Center export, one request at a time and paced, and produces the two CSV files the Studio reads. Load them with "Open the Studio and load these files" or by dropping them on the Studio.</p>
+    <div id="app"></div>
+  </section>
+  <section class="panel help">
+    <h2>Set-up and troubleshooting</h2>
+    <h3>API keys (service account)</h3>
+    <ol>
+      <li>Security Center: a user with a read-only role that can see every repository in scope (the built-in Auditor role works). <b>Users</b> → the user → <b>Generate API Keys</b>; API keys must be allowed under <b>Settings → Configuration → Security → Allow API Keys</b>. Nessus: <b>My Account → API Keys</b>.</li>
+      <li>The keys are kept in this browser profile only when "Remember" is ticked; otherwise the secret stays until the tab is closed. The tool sends them only to the endpoint you entered.</li>
+    </ol>
+    <h3>Certificate</h3>
+    <ol><li>A page cannot ask you to accept a certificate. If the endpoint uses a self-signed certificate, open it once in a new tab (link next to the buttons), accept the warning or import the internal CA, then retry.</li></ol>
+    <h3>If the connection is blocked</h3>
+    <ol>
+      <li>A page may only read another server's answers when that server allows it (the <code>Access-Control-Allow-Origin</code> header). Security Center and Nessus do not send it by default, so the browser reports a plain network failure even though the server is reachable; "Check connection" tells you when this is the case.</li>
+      <li><b>Simplest:</b> serve this file from the Tenable server itself, same origin, nothing to allow: copy <code>Tenable_Pull.html</code> (and the Studio) into the Security Center web root (the DocumentRoot named in <code>/opt/sc/support/conf/*.conf</code>) and open <code>https://&lt;security-center&gt;/Tenable_Pull.html</code>.</li>
+      <li><b>Or allow this page on the Tenable side</b> (Security Center Apache configuration): <code>Header always set Access-Control-Allow-Origin "null"</code> for a file opened from a folder (or the origin that serves it), <code>Header always set Access-Control-Allow-Headers "X-APIKey, Content-Type, Accept"</code>, <code>Header always set Access-Control-Allow-Methods "GET, POST, DELETE, OPTIONS"</code>, <code>Header always set Access-Control-Expose-Headers "Retry-After"</code>, and answer <code>OPTIONS</code> with 204. Nessus has no such setting.</li>
+      <li><b>Or a dedicated browser profile without web security</b>, for this tool only: a shortcut such as <code>chrome.exe --user-data-dir="%LOCALAPPDATA%\TenablePull" --disable-web-security</code>. Never browse anything else in that profile.</li>
+    </ol>
+    <h3>Load on Security Center</h3>
+    <ol>
+      <li>Every page of the vulnerability analysis is a database query. The tool sends one request at a time, waits between requests (pacing: Gentle 2 s, Normal 0.75 s, Fast 0.15 s), uses moderate pages (Normal: 1,000 vulnerability rows, 500 compliance rows), gives a request up to 2 minutes, and when the server answers 429 or 503 it waits (the Retry-After it asks for, or 2 s, 4 s, 8 s…) before trying again. The result shows the number of requests and the time the server spent.</li>
+      <li>Run the pull outside the scan windows; a pull of the current estate (about 6,000 vulnerability rows and 33,000 compliance rows) is roughly 75 requests.</li>
+    </ol>
+  </section>
+  <footer>Tenable Pull <span id="ver2"></span> · ALTANFEETHI Cybersecurity · companion of the Tenable Report Studio</footer>
+</main>
+<!-- @engine -->
+<script>
+(function(){
+  const style = document.createElement('style'); style.textContent = TenablePull.CSS; document.head.appendChild(style);
+  document.getElementById('ver').textContent = 'version ' + TenablePull.VERSION; document.getElementById('ver2').textContent = TenablePull.VERSION;
+  window.TP = TenablePull.mount(document.getElementById('app'), { mode: 'standalone' });
+})();
+</script>
+</body></html>
