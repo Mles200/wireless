@@ -1,0 +1,52 @@
+# Tenable Report Studio connector configuration.
+# Secrets can stay out of this file: TRS_SC_ACCESS_KEY, TRS_SC_SECRET_KEY, TRS_AUTH_PASSWORD (and the
+# other TRS_* variables listed in docs/DEPLOYMENT.md) override the values below.
+
+sc:                                   # Tenable Security Center (REST API, normally port 443)
+  enabled: true
+  url: https://127.0.0.1              # the connector runs on the Security Center VM; otherwise https://<security-center-host>
+  access_key: ""                      # Security Center > Users > (user) > Generate API Keys
+  secret_key: ""
+  verify: false                       # true, or the path of the CA bundle that signed the Security Center certificate
+  repositories: []                    # names or ids; empty = all repositories (the Studio removes cross-repository duplicates)
+  severities: "4,3,2,1"               # vulnerability export: Critical to Low
+  include_inventory: true             # add the Info rows of the inventory plugins so hosts with no findings stay listed
+  page_size: 2500
+  compliance_page_size: 1000
+
+nessus:                               # optional: Nessus / Nessus Manager on port 8834, used when Security Center is not the source
+  enabled: false
+  url: https://127.0.0.1:8834
+  access_key: ""
+  secret_key: ""
+  verify: false
+  scans: []                           # scan names to export; empty = every completed scan of the last max_age_days
+  max_age_days: 45
+
+server:
+  host: 0.0.0.0
+  port: 8000
+  public_url: http://<tenable-vm>:8000   # how the workstation reaches the service
+  auth:
+    username: studio                  # HTTP basic authentication for the Studio and the API (leave both empty to disable)
+    password: ""                      # or TRS_AUTH_PASSWORD
+  tls:
+    certfile: ""                      # optional: serve HTTPS (see docs/DEPLOYMENT.md for a self-signed certificate)
+    keyfile: ""
+
+store:
+  dir: ./data                         # every pull in its own dated folder
+  retention_days: 400
+  compress: true
+
+schedule:
+  enabled: true
+  weekday: Mon                        # Mon..Sun or daily
+  time: "06:00"
+  timezone: Asia/Riyadh
+  retry_minutes: 60
+
+studio:
+  path: ""                            # default: ../studio/ALTANFEETHI_Tenable_Report_Studio.html
+  shared_state: true                  # report settings and the risk register are kept on the server and shared by the team
+  org: ALTANFEETHI

@@ -1,0 +1,23 @@
+# secrets and local state
+config.yaml
+config.yml
+/connector/config.yaml
+/connector/data/
+/connector/env
+*.env
+
+# python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.venv/
+venv/
+build/
+dist/
+
+# editors
+.vscode/
+.idea/
+*.swp
+.DS_Store

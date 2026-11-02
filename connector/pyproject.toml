@@ -1,0 +1,33 @@
+[project]
+name = "trs-connector"
+version = "0.1.0"
+description = "Tenable Report Studio connector: pulls Tenable Security Center / Nessus results on a schedule, keeps them as Studio-ready exports and serves the Studio with a Tenable panel."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "Proprietary - ALTANFEETHI Cybersecurity" }
+dependencies = [
+  "fastapi>=0.110",
+  "uvicorn[standard]>=0.27",
+  "httpx>=0.27",
+  "pyyaml>=6",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=8", "playwright>=1.45", "openpyxl>=3.1"]
+
+[project.scripts]
+trs-connector = "trs_connector.cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["trs_connector*"]
+
+[tool.setuptools.package-data]
+trs_connector = ["static/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

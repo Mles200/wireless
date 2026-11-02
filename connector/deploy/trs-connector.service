@@ -1,0 +1,24 @@
+[Unit]
+Description=Tenable Report Studio connector (pulls Security Center results, serves the Studio)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=trs
+Group=trs
+WorkingDirectory=/opt/trs-connector
+# TRS_SC_ACCESS_KEY, TRS_SC_SECRET_KEY, TRS_AUTH_PASSWORD (mode 0600, owned by root:trs)
+EnvironmentFile=-/etc/trs-connector/env
+ExecStart=/opt/trs-connector/venv/bin/trs-connector --config /etc/trs-connector/config.yaml serve
+Restart=on-failure
+RestartSec=10
+# hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/var/lib/trs-connector
+
+[Install]
+WantedBy=multi-user.target
