@@ -138,7 +138,17 @@ def test_blocked_server_is_explained(mock_sc):
         connect(page, mock_sc.port)
         page.click("#tp_check")
         page.wait_for_selector("#tp_status .notice.bad", timeout=30000)
+        page.wait_for_function("document.querySelector('#tp_progress').innerText.includes('Diagnosis')", timeout=30000)
         text = page.inner_text("#tp_status") + page.inner_text("#tp_progress")
         assert "could not get an answer" in text and "Access-Control-Allow-Origin" in text and "If the connection is blocked" in text
         assert "disable-web-security" in text and "/opt/sc/support/conf" in text
+        # the no-cors probe tells that the server is there and only blocks the page
+        assert "Diagnosis: the server is there" in text and "does not allow this page" in text
+        # and a host with nothing listening is diagnosed as no connection, with the usual ports probed
+        d = page.evaluate("TenablePull.diagnoseConnection('https://127.0.0.1:1', 'sc')")
+        assert d["reachable"] is False and len(d["alternatives"]) == 5 and all(a["reachable"] is False for a in d["alternatives"])
+        html = page.evaluate("TenablePull.diagnosisHtml(%s)" % __import__("json").dumps(d))
+        assert "no connection at all" in html and "None of the usual ports" in html
+        d2 = page.evaluate("TenablePull.diagnoseConnection('https://127.0.0.1:1', 'sc').then(x => { x.alternatives[1].reachable = true; return TenablePull.diagnosisHtml(x); })")
+        assert "Something answers at" in d2 and "127.0.0.1:8000" in d2
         b.close()

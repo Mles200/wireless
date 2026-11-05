@@ -40,7 +40,7 @@ So there are not two applications: one report application, and a small helper th
 
 ### 4. If Check connection says the browser could not get an answer
 
-Three causes look the same from a page, and the message lists them: the certificate is not trusted (open the endpoint in a new tab and accept it), the host or port is not reachable, or the server does not allow a web page to read its answers (CORS). Security Center and Nessus do not allow it by default. The options, with exact steps in `docs/TENABLE_PULL.md` section 3: serve the two HTML files from the Security Center web root (same origin, nothing to allow), add the CORS headers to the Security Center Apache configuration, or use a dedicated browser profile for this tool only.
+Three causes look the same from a page: the certificate is not trusted, the host or port is not reachable, or the server does not allow a web page to read its answers (CORS). The tool runs a diagnosis right after the failure and tells you which one it is. "The server is there" means only CORS stands in the way: serve the two HTML files from the Security Center web root (same origin, nothing to allow), add the CORS headers to the Security Center Apache configuration, or use a dedicated browser profile for this tool only, with exact steps in `docs/TENABLE_PULL.md` section 3. "No connection at all" means the certificate or the address: open the endpoint in a new tab and accept the certificate, or use the address you log in to the console with, port included; the diagnosis lists which usual ports answered on that host.
 
 ### 5. What you get
 

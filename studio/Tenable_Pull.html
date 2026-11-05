@@ -576,8 +576,13 @@ footer{color:var(--muted);font-size:11.5px;text-align:center;margin-top:20px}
           status(`Connected to <b>${esc(props.nessus_type || 'Nessus')} ${esc(props.server_version || '?')}</b>, the scanner console. ${scans.length} completed scans, ${(listing.scans || []).length} in total. Pull will export the completed scans ticked under Pull options (none ticked = all of the last ${esc(S.maxAgeDays)} days).`, 'good');
         }
         read();
-      } catch (e) { status(errorHtml(e), 'bad'); if (e.kind === 'network') $('#tp_progress').innerHTML = corsHelp(); }
+      } catch (e) { status(errorHtml(e), 'bad'); if (e.kind === 'network') await explainNetworkFailure(); }
       finally { b.disabled = false; b.textContent = 'Check connection'; }
+    }
+    async function explainNetworkFailure() {
+      const prog = $('#tp_progress'); prog.innerHTML = '<div class="notice tp-small">Diagnosing: is the server there at all?</div>';
+      try { const d = await diagnoseConnection(S.url, S.source === 'nessus' ? 'nessus' : 'sc'); prog.innerHTML = diagnosisHtml(d) + corsHelp(); }
+      catch (e) { prog.innerHTML = corsHelp(); }
     }
     async function pull() {
       if (running) return; running = true; const b = $('#tp_pull'); b.disabled = true; b.textContent = 'Pulling…'; $('#tp_check').disabled = true; status(''); $('#tp_result').innerHTML = ''; result = null;
@@ -589,7 +594,7 @@ footer{color:var(--muted);font-size:11.5px;text-align:center;margin-top:20px}
         else { let previousRows = null; const f = $('#tp_prev').files[0]; if (f) previousRows = parseCsv(await f.text()); result = await pullNessus(client, { scans: S.scans, maxAgeDays: S.maxAgeDays, previousRows }, progress); }
         renderResult();
         if (options.mode === 'studio' && options.onFiles) { await options.onFiles(toFiles(result), result); }
-      } catch (e) { status(errorHtml(e), 'bad'); if (e.kind === 'network') prog.innerHTML += corsHelp(); }
+      } catch (e) { status(errorHtml(e), 'bad'); if (e.kind === 'network') await explainNetworkFailure(); }
       finally { running = false; b.disabled = false; b.textContent = 'Pull'; $('#tp_check').disabled = false; if (client && client.logout) client.logout(); }
     }
     function renderResult() {
@@ -630,6 +635,34 @@ footer{color:var(--muted);font-size:11.5px;text-align:center;margin-top:20px}
     $('#tp_check').onclick = check; $('#tp_pull').onclick = pull;
     return { check, pull, settings: () => S, result: () => result, read };
   }
+  /* ---------- diagnosis of a failed connection ----------
+     A request in "no-cors" mode is sent without the CORS rules and comes back opaque: the page
+     cannot read it, but it resolves if the server answered at all and rejects if the connection
+     failed (nothing listens, blocked port, untrusted certificate).  That separates "the server
+     is there but does not allow this page" from "no connection".  The ports Tenable products
+     commonly use are probed the same way to suggest the right endpoint. */
+  async function probeReachable(url, timeoutMs) {
+    const ctl = typeof AbortController !== 'undefined' ? new AbortController() : null; const t = ctl ? setTimeout(() => ctl.abort(), timeoutMs || 8000) : null;
+    try { await fetch(url, { mode: 'no-cors', cache: 'no-store', credentials: 'omit', signal: ctl ? ctl.signal : undefined }); return true; } catch (e) { return false; } finally { if (t) clearTimeout(t); }
+  }
+  async function diagnoseConnection(url, source) {
+    let base = String(url || '').trim().replace(/\/+$/, ''); if (!/^https?:\/\//i.test(base)) base = 'https://' + base;
+    const probe = base + (source === 'nessus' ? '/server/status' : '/rest/system');
+    const out = { base, probe, reachable: await probeReachable(probe, 8000), alternatives: [] };
+    if (!out.reachable) {
+      let host = ''; try { host = new URL(base).hostname; } catch (e) {}
+      if (host) for (const u of [`https://${host}`, `https://${host}:8000`, `http://${host}:8000`, `https://${host}:8443`, `https://${host}:8834`].filter(u => u !== base)) out.alternatives.push({ url: u, reachable: await probeReachable(u + '/', 5000) });
+    }
+    return out;
+  }
+  function diagnosisHtml(d) {
+    if (d.reachable) return `<div class="notice good"><b>Diagnosis: the server is there.</b> <code>${esc(d.probe)}</code> answers and its certificate is accepted by this browser; the address and the network are fine. The only problem is that the server does not allow this page to read the answer (CORS). Pick one of the options below: the quickest to try today is the dedicated browser profile (option 3); the clean one for daily use is serving this file from the Security Center web root (option 1).</div>`;
+    const alts = d.alternatives.filter(a => a.reachable);
+    return `<div class="notice bad"><b>Diagnosis: no connection at all</b> to <code>${esc(d.probe)}</code> from this browser: either the certificate is not trusted, or nothing listens at that address and port from this computer (the CORS options below do not apply yet).
+      <ol class="tp-ol"><li>Open <a href="${esc(d.probe)}" target="_blank" rel="noopener">${esc(d.probe)}</a> in a new tab. A certificate warning: accept it (or import the internal CA), then click Check connection again. "This site can't be reached": the address or port is wrong, or blocked between this computer and the server.</li>
+      <li>The endpoint is the address you use to log in to the Security Center console, port included when it has one (for example <code>https://10.70.30.3:8000</code>).</li>
+      ${alts.length ? `<li>Something answers at ${alts.map(a => `<code>${esc(a.url)}</code>`).join(', ')}: try ${alts.length > 1 ? 'these' : 'this'} as the endpoint${alts.some(a => /:8834$/.test(a.url)) ? ' (8834 is Nessus, the scanner console)' : ''}.</li>` : '<li>None of the usual ports (443, 8000, 8443, 8834) answered on that host either.</li>'}</ol></div>`;
+  }
   function corsHelp() {
     return `<div class="notice tp-small"><b>If the connection is blocked.</b> A page can only read another server's answers when that server allows it (an <code>Access-Control-Allow-Origin</code> header); Security Center and Nessus do not send it by default, and the browser then reports a plain network failure. Options, in order of preference:
       <ol class="tp-ol"><li><b>Serve this file from the Tenable server itself</b> (same origin, nothing to allow): copy it into the Security Center web root (the DocumentRoot in <code>/opt/sc/support/conf/*.conf</code>) and open it as <code>https://&lt;security-center&gt;/Tenable_Pull.html</code>.</li>
@@ -639,7 +672,7 @@ footer{color:var(--muted);font-size:11.5px;text-align:center;margin-top:20px}
       First rule out the certificate: open the endpoint link above in a new tab; if the browser warns, accept the certificate once (or import the internal CA) and retry.</div>`;
   }
 
-  return { VERSION, CSS, COLUMNS, HEADERS, INVENTORY_PLUGINS, PACING, Transport, SecurityCenter, Nessus, vulnFilters, pullSecurityCenter, pullNessus, parseNessus, selectScans, recordToRow, isCompliance, dedupKey, fmtDate, csvCell, CsvFile, parseCsv, firstSeenIndex, compliancePluginId, crc32, toFiles, manifest, summarize, loadSettings, saveSettings, forgetSecrets, mount, corsHelp, PullError };
+  return { VERSION, CSS, COLUMNS, HEADERS, INVENTORY_PLUGINS, PACING, Transport, SecurityCenter, Nessus, vulnFilters, probeReachable, diagnoseConnection, diagnosisHtml, pullSecurityCenter, pullNessus, parseNessus, selectScans, recordToRow, isCompliance, dedupKey, fmtDate, csvCell, CsvFile, parseCsv, firstSeenIndex, compliancePluginId, crc32, toFiles, manifest, summarize, loadSettings, saveSettings, forgetSecrets, mount, corsHelp, PullError };
 });
 </script>
 <script>

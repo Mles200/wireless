@@ -92,7 +92,7 @@ The hand-over only accepts files from the window that opened the Studio.
 
 | Message | Meaning and fix |
 |---|---|
-| "The browser could not get an answer from …" after Check connection | certificate not trusted (open the endpoint in a new tab and accept it), host or port unreachable, or the server does not allow the page (section 3). |
+| "The browser could not get an answer from …" after Check connection | The tool then runs a diagnosis. **"Diagnosis: the server is there"**: the address, network and certificate are fine; the server only refuses to let the page read the answer (CORS), so pick an option from section 3. **"Diagnosis: no connection at all"**: open the endpoint link in a new tab; a certificate warning means accept it and retry; "can't be reached" means the address or port is wrong or blocked, so use the address you log in to the console with, port included; the diagnosis also lists which of the usual ports (443, 8000, 8443, 8834) answered on that host. |
 | "HTTP 403 … Invalid API key" | wrong keys, API keys not allowed in Security Center, or the user cannot see the repository. |
 | "… did not return JSON" | the endpoint is a login page or the wrong port; use the Security Center web UI address without a path, or `https://host:8834` for Nessus. |
 | "Security Center does not accept the filter wasVuln" in the log | an older Security Center; the filter is dropped and the pull continues. |
