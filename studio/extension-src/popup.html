@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>Tenable Report Studio</title>
+<style>
+body{margin:0;width:340px;font-family:"IBM Plex Sans","Segoe UI",system-ui,sans-serif;font-size:13px;color:#2b2a28;background:#f5f1ea}
+.top{background:#2f2e2c;color:#fff;padding:10px 14px;border-bottom:3px solid #a8683b}
+.top b{display:block;letter-spacing:.06em;font-size:13px} .top small{opacity:.8;font-size:11px}
+.body{padding:12px 14px}
+button{display:block;width:100%;text-align:left;font:inherit;font-size:13px;padding:10px 12px;margin:0 0 8px;border:1px solid #cfc4b3;border-radius:8px;background:#fff;cursor:pointer}
+button:hover{border-color:#a8683b} button.primary{background:#a8683b;border-color:#a8683b;color:#fff}
+button small{display:block;font-size:11.5px;opacity:.8;margin-top:2px}
+p{margin:6px 0 0;font-size:11.5px;color:#5b5752}
+</style></head>
+<body>
+<div class="top"><b>ALTANFEETHI · Tenable Report Studio</b><small>Weekly VA and CIS compliance report from Tenable</small></div>
+<div class="body">
+  <button class="primary" id="openStudio">Open the Tenable Report Studio<small>Click its Tenable button to pull from Security Center and build the report</small></button>
+  <button id="openPull">Open Tenable Pull<small>Only fetches the two CSV export files</small></button>
+  <p>Both run inside this browser. The add-on exists so that they may call the Security Center API, which a page opened from a folder is not allowed to read.</p>
+</div>
+<script src="popup.js"></script>
+</body></html>

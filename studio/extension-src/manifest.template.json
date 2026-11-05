@@ -1,0 +1,12 @@
+{
+  "manifest_version": 3,
+  "name": "Tenable Report Studio",
+  "short_name": "Tenable Studio",
+  "version": "__VERSION__",
+  "description": "ALTANFEETHI Cybersecurity: pulls Tenable Security Center / Nessus results with a service account's API keys and builds the weekly vulnerability and CIS compliance report. Everything runs inside the browser.",
+  "icons": { "16": "icons/16.png", "48": "icons/48.png", "128": "icons/128.png" },
+  "action": { "default_popup": "popup.html", "default_title": "Tenable Report Studio", "default_icon": { "16": "icons/16.png", "48": "icons/48.png" } },
+  "background": { "service_worker": "background.js" },
+  "host_permissions": __HOSTS__,
+  "permissions": []
+}

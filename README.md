@@ -8,9 +8,10 @@ Weekly vulnerability-assessment and CIS-compliance reporting for ALTANFEETHI fro
 |---|---|---|
 | `studio/ALTANFEETHI_Tenable_Report_Studio.html` | **The report application** (v4.8). Loads the Tenable exports and produces the Excel workbooks (hosts, network), the PDF, the HTML report, Validate fixes and the risk register. Since v4.8 it also **fetches the exports itself**: the **Tenable** button pulls them from Security Center with the service account's API keys and loads them. | Every week. **This is the only file you need.** |
 | `studio/Tenable_Pull.html` | **A helper that only fetches.** The same form and the same pull as the Studio's Tenable button, but it stops at the two CSV files: download them, or hand them to the Studio with one click. | Optional: when you want the CSV files on their own (to archive them, send them, or pull on one computer and report on another). |
+| `Tenable_Report_Studio_addon.zip` (built by `tools/build_extension.py` into `dist/`) | **The same two files packaged as a browser add-on** (Chrome / Edge). Install it once; the Studio and the helper then run as extension pages, which may call Security Center directly, where a file opened from a folder is blocked (CORS). | The normal way to run them against Security Center. |
 | `connector/` | The same pull as a **server-side service** for scheduled, unattended runs. | Not needed. Ignore unless you want scheduling later. |
 
-So there are not two applications: one report application, and a small helper that does the first step of it separately.
+So there are not two applications: one report application, and a small helper that does the first step of it separately; the add-on is just the packaging that lets both talk to Security Center from the browser.
 
 ## Instructions
 
@@ -40,7 +41,9 @@ So there are not two applications: one report application, and a small helper th
 
 ### 4. If Check connection says the browser could not get an answer
 
-Three causes look the same from a page: the certificate is not trusted, the host or port is not reachable, or the server does not allow a web page to read its answers (CORS). The tool runs a diagnosis right after the failure and tells you which one it is. "The server is there" means only CORS stands in the way: serve the two HTML files from the Security Center web root (same origin, nothing to allow), add the CORS headers to the Security Center Apache configuration, or use a dedicated browser profile for this tool only, with exact steps in `docs/TENABLE_PULL.md` section 3. "No connection at all" means the certificate or the address: open the endpoint in a new tab and accept the certificate, or use the address you log in to the console with, port included; the diagnosis lists which usual ports answered on that host.
+Three causes look the same from a page: the certificate is not trusted, the host or port is not reachable, or the server does not allow a web page to read its answers (CORS). The tool runs a diagnosis right after the failure and tells you which one it is. "No connection at all" means the certificate or the address: open the endpoint in a new tab and accept the certificate, or use the address you log in to the console with, port included; the diagnosis lists which usual ports answered on that host.
+
+"The server is there" means only CORS stands in the way, which is Security Center's default behaviour. **The answer is the browser add-on**: `Tenable_Report_Studio_addon.zip` is the Studio and Tenable Pull packaged as a Chrome / Edge extension; extension pages may call the hosts they declare without the CORS restriction, nothing changes on the server and browser security stays on. Unzip it to a permanent folder, open `edge://extensions` (or `chrome://extensions`), switch on Developer mode, click Load unpacked, choose the folder, then click the copper icon in the toolbar. `docs/TENABLE_PULL.md` section 3 has the details and the alternatives (serving the files from the Security Center web root, CORS headers in its Apache configuration, a dedicated browser profile).
 
 ### 5. What you get
 
@@ -62,6 +65,7 @@ Every analysis page is a database query, so the pull sends one request at a time
 | `studio/Tenable_Pull.html` | the fetch helper (built) |
 | `studio/src/` | the engine (`tenable_pull.js`), the helper's page template, the Studio panel glue, the engine's unit tests |
 | `tools/build_tenable.py` | builds both HTML files from `studio/src/`; `--check` verifies them |
+| `studio/extension-src/`, `tools/build_extension.py` | the browser add-on (manifest, popup, glue) and its build into `dist/extension/` and `dist/Tenable_Report_Studio_addon.zip`; `--hosts` narrows the hosts it may call |
 | `tools/patch_studio.py` | the v4.7 fixes to the Studio as exact, verifiable patches |
 | `docs/TENABLE_PULL.md` | the full guide: set-up, where to run the file, pacing, troubleshooting |
 | `docs/REVIEW.md` | the application review of v4.6: architecture, strengths, findings, recommendations |
