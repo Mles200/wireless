@@ -3282,7 +3282,25 @@ async function exportRiskExcel(){
 
   /* ---------- settings kept in the browser ---------- */
   const SETTINGS_KEY = 'trs.tenable';
-  function loadSettings() { let s = {}; try { s = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}') || {}; } catch (e) {} try { const sec = sessionStorage.getItem(SETTINGS_KEY + '.secret'); if (sec && !s.secretKey) s.secretKey = sec; const pw = sessionStorage.getItem(SETTINGS_KEY + '.password'); if (pw && !s.password) s.password = pw; } catch (e) {} return Object.assign({ source: 'sc', url: '', accessKey: '', secretKey: '', username: '', password: '', remember: false, severities: ['4', '3', '2', '1'], includeInventory: true, compliance: true, pacing: 'normal', pageSize: PACING.normal.pageSize, compliancePageSize: PACING.normal.compliancePageSize, repositories: [], scans: [], maxAgeDays: 45, studioPath: 'ALTANFEETHI_Tenable_Report_Studio.html' }, s); }
+  function loadSettings() { let s = {}; try { s = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}') || {}; } catch (e) {} try { const sec = sessionStorage.getItem(SETTINGS_KEY + '.secret'); if (sec && !s.secretKey) s.secretKey = sec; const pw = sessionStorage.getItem(SETTINGS_KEY + '.password'); if (pw && !s.password) s.password = pw; } catch (e) {} return Object.assign({ source: 'auto', url: '', accessKey: '', secretKey: '', username: '', password: '', remember: false, severities: ['4', '3', '2', '1'], includeInventory: true, compliance: true, pacing: 'normal', pageSize: PACING.normal.pageSize, compliancePageSize: PACING.normal.compliancePageSize, repositories: [], scans: [], maxAgeDays: 45, studioPath: 'ALTANFEETHI_Tenable_Report_Studio.html' }, s); }
+
+  /* the explanation of every field, shown in the standalone page (open) and in the Studio's panel (collapsed) */
+  const HELP_HTML = `
+    <h4>Which Tenable product do I connect to?</h4>
+    <p><b>Tenable Security Center</b> (also called Tenable.sc) is the management console: the one with <i>Analysis › Vulnerabilities</i>, <i>Repositories</i>, <i>Organizations</i>, <i>Accept Risk</i>, where the CSV exports for the weekly report were taken until now. It holds the cumulative results of every scan, with the dates a finding was first and last seen. <b>This is the one to use.</b></p>
+    <p><b>Nessus / Nessus Manager</b> is the scanner itself, the console with <i>Scans</i>, <i>Agents</i>, <i>Policies</i> on port 8834; the agents report to it and Security Center imports from it. Use it only when there is no Security Center: it gives the same findings but no history (no "first discovered" date; the tool carries the dates forward from a previous export instead) and no Accept/Recast Risk rules.</p>
+    <p>Not sure which address you have? Leave <b>Source</b> on <i>Detect automatically</i> and click <b>Check connection</b>: the tool asks the address as Security Center first, then as Nessus, and tells you what answered (product, version, user, repositories or scans).</p>
+    <h4>What to enter</h4>
+    <table class="data tp-fields"><tbody>
+      <tr><th>Source</th><td><i>Detect automatically</i> (recommended), or the product explicitly. Security Center queries the cumulative database by repository; Nessus exports the completed scans you tick.</td></tr>
+      <tr><th>API endpoint</th><td>The address you type in the browser to open that console, with no path after it. Security Center: <code>https://10.70.30.2</code> or <code>https://tenable.altanfeethi.local</code> (add the port if the console is reached on one, for example <code>https://10.70.30.2:8000</code>). Nessus: <code>https://10.70.30.2:8834</code>. The tool adds <code>/rest/…</code> or the Nessus paths itself.</td></tr>
+      <tr><th>Access key, Secret key</th><td>The API keys of a read-only service account. Security Center: <i>Users › the user › Generate API Keys</i> (API keys must be allowed under <i>Settings › Configuration › Security › Allow API Keys</i>; the built-in Auditor role with access to every repository is enough). Nessus: <i>My Account › API Keys</i>. The secret is shown once when generated.</td></tr>
+      <tr><th>Username, password</th><td>Security Center only, instead of the keys: the tool logs in like the console does (session token) and logs out at the end. Keys are preferred; a session login is for an installation where API keys are not allowed.</td></tr>
+      <tr><th>Remember</th><td>Unticked: the address, access key and options are kept in this browser profile, the secret only until the tab is closed. Ticked: the secret is kept too, unencrypted, like a saved password.</td></tr>
+      <tr><th>Pull options</th><td>Which severities to export (the report uses Critical to Low), whether to add the inventory rows that keep hosts without findings listed (keep it on), the compliance export (keep it on for the CIS part of the report), the request pacing, and which repositories (Security Center) or scans (Nessus) to include: after Check connection they are listed; none ticked means all.</td></tr>
+    </tbody></table>
+    <h4>What you get</h4>
+    <p>Two CSV files with the layout of the Security Center "Vulnerability Detail List" export: <code>SC VA export &lt;date&gt;.csv</code> (vulnerabilities, Critical to Low, plus the inventory rows) and <code>SC Compliance export &lt;date&gt;.csv</code> (CIS checks: Info = passed, Medium = warning, High = failed), with <code>manifest.json</code> (counts, filters, load figures) and <code>risk-rules.json</code> (the Accept/Recast Risk rules at that moment). The Studio loads them exactly like the exports it received by hand: the newest is "now", an older pull loaded next to it is the history for the trend, Validate fixes and the risk register.</p>`;
   function saveSettings(s) { const keep = Object.assign({}, s); if (!s.remember) { delete keep.secretKey; delete keep.password; } try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(keep)); } catch (e) {} try { if (s.secretKey) sessionStorage.setItem(SETTINGS_KEY + '.secret', s.secretKey); else sessionStorage.removeItem(SETTINGS_KEY + '.secret'); if (s.password) sessionStorage.setItem(SETTINGS_KEY + '.password', s.password); else sessionStorage.removeItem(SETTINGS_KEY + '.password'); } catch (e) {} }
   function forgetSecrets() { try { const s = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}') || {}; delete s.secretKey; delete s.password; s.remember = false; localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); } catch (e) {} try { sessionStorage.removeItem(SETTINGS_KEY + '.secret'); sessionStorage.removeItem(SETTINGS_KEY + '.password'); } catch (e) {} }
 
@@ -3312,6 +3330,14 @@ async function exportRiskExcel(){
     .tp-ol{margin:6px 0 0 18px;padding:0}
     .tp-ol li{margin:4px 0}
     .tp code{font-family:var(--mono,ui-monospace,Consolas,monospace);font-size:11.5px;background:var(--surface-2,#f6f1e8);padding:1px 4px;border-radius:3px}
+    .tp-hint{font-size:11.5px;color:var(--muted,#8e8882);line-height:1.35}
+    .tp-help{margin:0 0 14px;padding:10px 12px;border:1px solid var(--line,#e5ddd0);border-radius:8px;background:var(--surface,#fff)}
+    .tp-help > summary{cursor:pointer;font-weight:600;font-size:13px}
+    .tp-help-body{margin-top:8px;font-size:13px;color:var(--ink,#2b2a28)}
+    .tp-help-body h4{margin:10px 0 4px;font-size:13px}
+    .tp-help-body p{margin:4px 0}
+    .tp-fields th{width:150px;text-align:left;vertical-align:top;font-size:12px;text-transform:none;letter-spacing:0}
+    .tp-fields td{font-size:12.5px}
     #tp_status, #tp_progress, #tp_result{margin-top:10px}
   `;
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -3324,24 +3350,26 @@ async function exportRiskExcel(){
     const S = loadSettings(); let client = null, checked = null, result = null, running = false;
     const $ = sel => container.querySelector(sel); const $$ = sel => Array.from(container.querySelectorAll(sel));
     const sevOpts = [['4', 'Critical'], ['3', 'High'], ['2', 'Medium'], ['1', 'Low']];
+    const isSc = S.source !== 'nessus';   // "auto" shows the Security Center options until the check says otherwise
     container.innerHTML = `
       <div class="tp">
+        <details class="tp-help" id="tp_help" ${options.helpOpen === false ? '' : 'open'}><summary>What to enter (Security Center or Nessus, endpoint, keys, options)</summary><div class="tp-help-body">${HELP_HTML}</div></details>
         <div class="tp-grid">
-          <label>Source<select id="tp_source"><option value="sc" ${S.source === 'sc' ? 'selected' : ''}>Tenable Security Center (REST API)</option><option value="nessus" ${S.source === 'nessus' ? 'selected' : ''}>Nessus / Nessus Manager (port 8834)</option></select></label>
-          <label>API endpoint<input id="tp_url" value="${esc(S.url)}" placeholder="https://security-center-host   or   https://host:8834" autocomplete="off" spellcheck="false"></label>
-          <label>Access key<input id="tp_ak" value="${esc(S.accessKey)}" autocomplete="off" spellcheck="false"></label>
-          <label>Secret key<input id="tp_sk" type="password" value="${esc(S.secretKey)}" autocomplete="off"></label>
-          <div class="tp-sc-only" ${S.source !== 'sc' ? 'hidden' : ''}><details><summary class="tp-small">Or a username and password (Security Center session login) instead of keys</summary><div class="tp-grid"><label>Username<input id="tp_user" value="${esc(S.username)}" autocomplete="off"></label><label>Password<input id="tp_pw" type="password" value="${esc(S.password)}" autocomplete="off"></label></div></details></div>
+          <label>Source<select id="tp_source"><option value="auto" ${S.source === 'auto' ? 'selected' : ''}>Detect automatically (recommended)</option><option value="sc" ${S.source === 'sc' ? 'selected' : ''}>Tenable Security Center, the management console (Analysis, Repositories)</option><option value="nessus" ${S.source === 'nessus' ? 'selected' : ''}>Nessus / Nessus Manager, the scanner console (port 8834)</option></select><span class="tp-hint" id="tp_source_hint"></span></label>
+          <label>API endpoint<input id="tp_url" value="${esc(S.url)}" placeholder="https://10.70.30.2" autocomplete="off" spellcheck="false"><span class="tp-hint">The address you open in the browser for the console, no path after it: <code>https://10.70.30.2</code> or <code>https://tenable.altanfeethi.local</code>; add the port if there is one (<code>https://10.70.30.2:8834</code> for Nessus).</span></label>
+          <label>Access key<input id="tp_ak" value="${esc(S.accessKey)}" autocomplete="off" spellcheck="false"><span class="tp-hint">Security Center: Users › the user › Generate API Keys. Nessus: My Account › API Keys.</span></label>
+          <label>Secret key<input id="tp_sk" type="password" value="${esc(S.secretKey)}" autocomplete="off"><span class="tp-hint">Shown once when the keys are generated; sent only to the endpoint above.</span></label>
+          <div class="tp-sc-only" ${isSc ? '' : 'hidden'}><details><summary class="tp-small">Or a username and password (Security Center session login) instead of keys</summary><div class="tp-grid"><label>Username<input id="tp_user" value="${esc(S.username)}" autocomplete="off"></label><label>Password<input id="tp_pw" type="password" value="${esc(S.password)}" autocomplete="off"></label></div></details></div>
           <label class="tp-check tp-wide"><input type="checkbox" id="tp_remember" ${S.remember ? 'checked' : ''}> Remember the secret key / password on this computer (stored unencrypted in this browser profile; otherwise kept only until the tab is closed)</label>
         </div>
         <details class="tp-opts"><summary>Pull options</summary><div class="tp-grid">
-          <div class="tp-sc-only" ${S.source !== 'sc' ? 'hidden' : ''}><span class="tp-small">Vulnerability severities</span><div class="tp-chips">${sevOpts.map(([v, l]) => `<label class="tp-check"><input type="checkbox" class="tp-sev" value="${v}" ${S.severities.includes(v) ? 'checked' : ''}> ${l}</label>`).join('')}</div></div>
-          <div class="tp-sc-only" ${S.source !== 'sc' ? 'hidden' : ''}><label class="tp-check"><input type="checkbox" id="tp_inv" ${S.includeInventory ? 'checked' : ''}> Add the inventory rows (Info rows of the OS, hostname, scan info, CPE and patch-assessment plugins) so hosts with no findings stay listed as scanned</label><label class="tp-check"><input type="checkbox" id="tp_cmp" ${S.compliance ? 'checked' : ''}> Compliance export (Info = passed, Medium = warning, High = failed)</label></div>
+          <div class="tp-sc-only" ${isSc ? '' : 'hidden'}><span class="tp-small">Vulnerability severities</span><div class="tp-chips">${sevOpts.map(([v, l]) => `<label class="tp-check"><input type="checkbox" class="tp-sev" value="${v}" ${S.severities.includes(v) ? 'checked' : ''}> ${l}</label>`).join('')}</div></div>
+          <div class="tp-sc-only" ${isSc ? '' : 'hidden'}><label class="tp-check"><input type="checkbox" id="tp_inv" ${S.includeInventory ? 'checked' : ''}> Add the inventory rows (Info rows of the OS, hostname, scan info, CPE and patch-assessment plugins) so hosts with no findings stay listed as scanned</label><label class="tp-check"><input type="checkbox" id="tp_cmp" ${S.compliance ? 'checked' : ''}> Compliance export (Info = passed, Medium = warning, High = failed)</label></div>
           <div class="tp-wide"><label>Request pacing (one request at a time; the pause between requests, the retries on 429 / 503 and the page sizes)<select id="tp_pacing">${Object.entries(PACING).map(([k, p]) => `<option value="${k}" ${S.pacing === k ? 'selected' : ''}>${esc(p.label)}</option>`).join('')}</select></label></div>
-          <div class="tp-sc-only" ${S.source !== 'sc' ? 'hidden' : ''}><label>Rows per page (vulnerabilities)<input id="tp_page" type="number" min="100" max="5000" value="${esc(S.pageSize)}"></label><label>Rows per page (compliance)<input id="tp_cpage" type="number" min="100" max="5000" value="${esc(S.compliancePageSize)}"></label></div>
-          <div class="tp-sc-only tp-wide" ${S.source !== 'sc' ? 'hidden' : ''}><span class="tp-small">Repositories (after Check connection; none ticked = all)</span><div id="tp_repos" class="tp-chips tp-muted">not checked yet</div></div>
-          <div class="tp-nessus-only tp-wide" ${S.source !== 'nessus' ? 'hidden' : ''}><span class="tp-small">Scans to export (after Check connection; none ticked = every completed scan of the last <input id="tp_age" type="number" min="1" max="3650" value="${esc(S.maxAgeDays)}" style="width:64px"> days)</span><div id="tp_scans" class="tp-chips tp-muted">not checked yet</div></div>
-          <div class="tp-nessus-only tp-wide" ${S.source !== 'nessus' ? 'hidden' : ''}><label>Previous VA export (optional): Nessus has no "first discovered", so the dates are carried forward from this file<input id="tp_prev" type="file" accept=".csv"></label></div>
+          <div class="tp-sc-only" ${isSc ? '' : 'hidden'}><label>Rows per page (vulnerabilities)<input id="tp_page" type="number" min="100" max="5000" value="${esc(S.pageSize)}"></label><label>Rows per page (compliance)<input id="tp_cpage" type="number" min="100" max="5000" value="${esc(S.compliancePageSize)}"></label></div>
+          <div class="tp-sc-only tp-wide" ${isSc ? '' : 'hidden'}><span class="tp-small">Repositories (after Check connection; none ticked = all)</span><div id="tp_repos" class="tp-chips tp-muted">not checked yet</div></div>
+          <div class="tp-nessus-only tp-wide" ${isSc ? 'hidden' : ''}><span class="tp-small">Scans to export (after Check connection; none ticked = every completed scan of the last <input id="tp_age" type="number" min="1" max="3650" value="${esc(S.maxAgeDays)}" style="width:64px"> days)</span><div id="tp_scans" class="tp-chips tp-muted">not checked yet</div></div>
+          <div class="tp-nessus-only tp-wide" ${isSc ? 'hidden' : ''}><label>Previous VA export (optional): Nessus has no "first discovered", so the dates are carried forward from this file<input id="tp_prev" type="file" accept=".csv"></label></div>
         </div></details>
         <div class="tp-actions"><button type="button" class="btn" id="tp_check">Check connection</button><button type="button" class="btn primary" id="tp_pull">Pull</button><a class="tp-small" id="tp_open" href="#" target="_blank" rel="noopener" hidden>open the endpoint in a new tab (certificate)</a><span class="tp-flex"></span>${options.mode === 'studio' ? '<button type="button" class="btn" id="tp_close">Close</button>' : ''}</div>
         <div id="tp_status"></div>
@@ -3352,29 +3380,40 @@ async function exportRiskExcel(){
       S.severities = $$('.tp-sev').filter(c => c.checked).map(c => c.value); S.includeInventory = $('#tp_inv').checked; S.compliance = $('#tp_cmp').checked; S.pacing = PACING[$('#tp_pacing').value] ? $('#tp_pacing').value : 'normal';
       S.pageSize = Math.min(5000, Math.max(100, parseInt($('#tp_page').value, 10) || PACING[S.pacing].pageSize)); S.compliancePageSize = Math.min(5000, Math.max(100, parseInt($('#tp_cpage').value, 10) || PACING[S.pacing].compliancePageSize)); S.maxAgeDays = parseInt($('#tp_age').value, 10) || 45;
       S.repositories = $$('#tp_repos input:checked').map(c => c.value); S.scans = $$('#tp_scans input:checked').map(c => c.value); saveSettings(S); return S; };
-    const showSource = () => { const sc = $('#tp_source').value === 'sc'; $$('.tp-sc-only').forEach(el => el.hidden = !sc); $$('.tp-nessus-only').forEach(el => el.hidden = sc); $('#tp_url').placeholder = sc ? 'https://security-center-host' : 'https://nessus-host:8834'; };
+    const SOURCE_HINT = { auto: 'The check asks the address as Security Center first, then as Nessus, and sets this field to what answered.', sc: 'The management console: Analysis › Vulnerabilities, Repositories, Accept Risk; cumulative results with first-seen dates. The one the weekly exports came from.', nessus: 'The scanner console (Scans, Agents, Policies, port 8834). Same findings, no history: use it only without Security Center.' };
+    const showSource = () => { const v = $('#tp_source').value; const sc = v !== 'nessus'; $$('.tp-sc-only').forEach(el => el.hidden = !sc); $$('.tp-nessus-only').forEach(el => el.hidden = sc); $('#tp_url').placeholder = sc ? 'https://10.70.30.2' : 'https://10.70.30.2:8834'; $('#tp_source_hint').textContent = SOURCE_HINT[v] || ''; };
     $('#tp_source').onchange = showSource; showSource();
     $('#tp_pacing').onchange = () => { const p = PACING[$('#tp_pacing').value] || PACING.normal; $('#tp_page').value = p.pageSize; $('#tp_cpage').value = p.compliancePageSize; };
     const transportFor = (retriesOverride) => { const p = PACING[S.pacing] || PACING.normal; return new Transport({ interval: p.interval, retries: retriesOverride == null ? p.retries : retriesOverride, timeout: p.timeout }); };
-    $('#tp_url').oninput = () => { const u = $('#tp_url').value.trim(); const a = $('#tp_open'); if (u) { a.href = (/^https?:\/\//i.test(u) ? u : 'https://' + u).replace(/\/+$/, '') + ($('#tp_source').value === 'sc' ? '/rest/system' : '/server/status'); a.hidden = false; } else a.hidden = true; }; $('#tp_url').oninput();
+    $('#tp_url').oninput = () => { const u = $('#tp_url').value.trim(); const a = $('#tp_open'); if (u) { a.href = (/^https?:\/\//i.test(u) ? u : 'https://' + u).replace(/\/+$/, '') + ($('#tp_source').value === 'nessus' ? '/server/status' : '/rest/system'); a.hidden = false; } else a.hidden = true; }; $('#tp_url').oninput();
     if (options.mode === 'studio') $('#tp_close').onclick = () => options.onClose && options.onClose();
     const status = (html, cls) => { $('#tp_status').innerHTML = html ? `<div class="notice ${cls || ''}">${html}</div>` : ''; };
     const errorHtml = e => `<b>${esc(e.message || e)}</b>${e.detail ? `<div class="tp-small" style="margin-top:4px">${esc(e.detail)}</div>` : ''}`;
-    const makeClient = (retries) => { read(); const transport = transportFor(retries); return S.source === 'sc' ? new SecurityCenter({ url: S.url, accessKey: S.accessKey, secretKey: S.secretKey, username: S.username, password: S.password, transport }) : new Nessus({ url: S.url, accessKey: S.accessKey, secretKey: S.secretKey, transport }); };
+    const makeClient = (retries, source) => { read(); const transport = transportFor(retries); return (source || S.source) !== 'nessus' ? new SecurityCenter({ url: S.url, accessKey: S.accessKey, secretKey: S.secretKey, username: S.username, password: S.password, transport }) : new Nessus({ url: S.url, accessKey: S.accessKey, secretKey: S.secretKey, transport }); };
+    /* "Detect automatically": ask the address as Security Center, then as Nessus; the first that answers wins */
+    async function detect(retries) {
+      read(); if (S.source !== 'auto') return { source: S.source, client: makeClient(retries) };
+      let scErr = null, nErr = null;
+      try { const c = makeClient(retries, 'sc'); const sys = await c.system(); return { source: 'sc', client: c, sys }; } catch (e) { scErr = e; }
+      try { const c = makeClient(retries, 'nessus'); const props = await c.properties(); return { source: 'nessus', client: c, props }; } catch (e) { nErr = e; }
+      throw (scErr.kind === 'network' || nErr.kind === 'config') ? scErr : (nErr.kind === 'network' ? nErr : scErr);
+    }
+    const setSource = src => { S.source = src; $('#tp_source').value = src; showSource(); saveSettings(S); };
     async function check() {
       const b = $('#tp_check'); b.disabled = true; b.textContent = 'Checking…'; status('');
       try {
-        client = makeClient(0);   // a check answers quickly: no retries
-        if (S.source === 'sc') {
-          const sys = await client.system(); let u = {}; try { u = await client.currentUser(); } catch (e) {}
+        const d = await detect(0);   // a check answers quickly: no retries
+        client = d.client; if (d.source !== $('#tp_source').value) setSource(d.source);
+        if (d.source === 'sc') {
+          const sys = d.sys || await client.system(); let u = {}; try { u = await client.currentUser(); } catch (e) {}
           const repos = await client.repositories(); checked = { sys, u, repos };
           $('#tp_repos').className = 'tp-chips'; $('#tp_repos').innerHTML = repos.map(r => `<label class="tp-check"><input type="checkbox" value="${esc(r.id)}" ${S.repositories.includes(String(r.id)) ? 'checked' : ''}> ${esc(r.name)} <span class="tp-muted">(${esc(r.type || '')})</span></label>`).join('') || '<span class="tp-muted">no repository visible to this user</span>';
-          status(`Connected to Security Center <b>${esc(sys.version || '?')}</b> (build ${esc(sys.buildID || '?')}, licence ${esc(sys.licenseStatus || '?')})${u.username ? ` as <b>${esc(u.username)}</b>${u.role && u.role.name ? ' (' + esc(u.role.name) + ')' : ''}` : ''}. Repositories: ${repos.map(r => esc(r.name)).join(', ') || 'none'}.`, 'good');
+          status(`Connected to <b>Tenable Security Center ${esc(sys.version || '?')}</b> (build ${esc(sys.buildID || '?')}, licence ${esc(sys.licenseStatus || '?')})${u.username ? ` as <b>${esc(u.username)}</b>${u.role && u.role.name ? ' (' + esc(u.role.name) + ')' : ''}` : ''}. Repositories: ${repos.map(r => esc(r.name)).join(', ') || 'none'}. This is the management console; Pull will export the cumulative results.`, 'good');
         } else {
-          const props = await client.properties(); const listing = await client.scans(); checked = { props, listing };
+          const props = d.props || await client.properties(); const listing = await client.scans(); checked = { props, listing };
           const scans = (listing.scans || []).filter(s => String(s.status || '').toLowerCase() === 'completed');
           $('#tp_scans').className = 'tp-chips'; $('#tp_scans').innerHTML = scans.map(s => `<label class="tp-check"><input type="checkbox" value="${esc(s.id)}" ${S.scans.includes(String(s.id)) || S.scans.includes(String(s.name)) ? 'checked' : ''}> ${esc(s.name)} <span class="tp-muted">(${esc(whenTs(s.last_modification_date))})</span></label>`).join('') || '<span class="tp-muted">no completed scan</span>';
-          status(`Connected to <b>${esc(props.nessus_type || 'Nessus')} ${esc(props.server_version || '?')}</b>. ${scans.length} completed scans, ${(listing.scans || []).length} in total.`, 'good');
+          status(`Connected to <b>${esc(props.nessus_type || 'Nessus')} ${esc(props.server_version || '?')}</b>, the scanner console. ${scans.length} completed scans, ${(listing.scans || []).length} in total. Pull will export the completed scans ticked under Pull options (none ticked = all of the last ${esc(S.maxAgeDays)} days).`, 'good');
         }
         read();
       } catch (e) { status(errorHtml(e), 'bad'); if (e.kind === 'network') $('#tp_progress').innerHTML = corsHelp(); }
@@ -3385,8 +3424,8 @@ async function exportRiskExcel(){
       const log = []; const prog = $('#tp_progress');
       const progress = p => { log.push(`${new Date().toISOString().slice(11, 19)} ${p.message}`); if (log.length > 300) log.shift(); const pct = p.total ? Math.min(100, Math.round(100 * (p.rows || 0) / p.total)) : null; prog.innerHTML = `<div class="notice"><b>${esc(p.phase)}</b>: ${esc(p.message)}<div class="tp-bar"><div style="width:${pct == null ? (p.phase === 'done' ? 100 : 12) : pct}%"></div></div><div class="tp-log">${log.slice(-8).map(esc).join('\n')}</div></div>`; };
       try {
-        client = makeClient();
-        if (S.source === 'sc') result = await pullSecurityCenter(client, { severities: (S.severities.length ? S.severities : ['4', '3', '2', '1']).join(','), includeInventory: S.includeInventory, compliance: S.compliance, pageSize: S.pageSize, compliancePageSize: S.compliancePageSize, repositories: S.repositories }, progress);
+        const d = await detect(); client = d.client; if (d.source !== $('#tp_source').value) setSource(d.source);
+        if (d.source === 'sc') result = await pullSecurityCenter(client, { severities: (S.severities.length ? S.severities : ['4', '3', '2', '1']).join(','), includeInventory: S.includeInventory, compliance: S.compliance, pageSize: S.pageSize, compliancePageSize: S.compliancePageSize, repositories: S.repositories }, progress);
         else { let previousRows = null; const f = $('#tp_prev').files[0]; if (f) previousRows = parseCsv(await f.text()); result = await pullNessus(client, { scans: S.scans, maxAgeDays: S.maxAgeDays, previousRows }, progress); }
         renderResult();
         if (options.mode === 'studio' && options.onFiles) { await options.onFiles(toFiles(result), result); }
@@ -3485,7 +3524,7 @@ async function exportRiskExcel(){
     const close = () => { host.hidden = true; host.innerHTML = ''; };
     host.querySelector('.modal').addEventListener('click', e => { if (e.target.classList.contains('modal') && !host.dataset.busy) close(); });
     TenablePull.mount($('#tenablePanel'), {
-      mode: 'studio', onClose: close,
+      mode: 'studio', onClose: close, helpOpen: !(TenablePull.loadSettings().url),   // the explanation stays open until an endpoint has been saved once
       onFiles: async (files, result) => {
         host.dataset.busy = '1';
         try { await addFiles(files); close(); showNotice(`Loaded from ${result.source.type === 'sc' ? 'Tenable Security Center' : 'Nessus'} ${esc(result.source.version || '')}: ${files.map(f => esc(f.name)).join(', ')} (${esc(result.summary)}; ${esc(result.transport || '')}).`); }

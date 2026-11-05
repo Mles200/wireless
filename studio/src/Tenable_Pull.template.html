@@ -28,20 +28,32 @@ table.data th{background:var(--surface-2);text-align:left;font-size:11px;letter-
 table.data td{padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:top} table.data td.num, table.data th.num{text-align:right} .wrap{white-space:normal} .nowrap{white-space:nowrap}
 .help ol{margin:6px 0 0 18px;padding:0} .help li{margin:5px 0} .help code{font-family:var(--mono);font-size:11.5px;background:var(--surface-2);padding:1px 4px;border-radius:3px}
 .help h3{font-size:13.5px;margin:12px 0 4px}
+.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-top:8px}
+.steps > div{background:var(--surface-2);border-radius:8px;padding:10px 12px;font-size:12.5px;color:var(--ink-2)} .steps b{display:block;color:var(--ink);margin-bottom:3px}
+.which{border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin-top:8px;font-size:12.5px;background:var(--surface-2)} .which b{color:var(--ink)}
 footer{color:var(--muted);font-size:11.5px;text-align:center;margin-top:20px}
 </style>
 </head>
 <body>
 <header class="topbar">
   <div class="wordmark">ALTANFEETHI<small>Cybersecurity</small></div>
-  <div class="title">Tenable Pull<small>Security Center / Nessus exports for the Tenable Report Studio, straight from the API</small></div>
+  <div class="title">Tenable Pull<small>Fetches the Security Center / Nessus exports for the Tenable Report Studio, straight from the API</small></div>
   <div class="spacer"></div>
   <div class="ver" id="ver"></div>
 </header>
 <main>
   <section class="panel">
+    <h2>What this is <span class="hint">one minute to read before the first pull</span></h2>
+    <div class="which"><b>Two files, one job each.</b> <b>Tenable Pull</b> (this page) only <i>fetches</i>: it asks Tenable for the data and gives you the two CSV files the Studio reads, replacing the manual export from Security Center. <b>The Tenable Report Studio</b> makes the report (Excel workbooks, PDF, HTML report, Validate fixes, risk register). The Studio has this same pull built in under its <b>Tenable</b> button, so for the weekly report you only need the Studio; use this page when you want the CSV files on their own, to archive them, send them, or pull on one computer and report on another.</div>
+    <div class="steps">
+      <div><b>1. Keys</b>Create API keys for a read-only service account in Security Center (Users › the user › Generate API Keys).</div>
+      <div><b>2. Connect</b>Enter the console address and the keys, click <i>Check connection</i>: it tells you what answered (product, version, user, repositories).</div>
+      <div><b>3. Pull</b>Click <i>Pull</i>. One request at a time, paced; the result shows the row counts and the load on the server.</div>
+      <div><b>4. Report</b>"Open the Studio and load these files", or download the CSVs and drop them on the Studio.</div>
+    </div>
+  </section>
+  <section class="panel">
     <h2>Connection and pull <span class="hint">nothing leaves this computer except the requests to the Tenable endpoint</span></h2>
-    <p>Enter the endpoint and the service account's API keys, check the connection, then pull. The tool fetches the vulnerability rows (Critical to Low, plus the inventory rows that keep hosts without findings listed) and the compliance rows (Info, Medium, High) with the column layout of the Security Center export, one request at a time and paced, and produces the two CSV files the Studio reads. Load them with "Open the Studio and load these files" or by dropping them on the Studio.</p>
     <div id="app"></div>
   </section>
   <section class="panel help">
@@ -73,7 +85,7 @@ footer{color:var(--muted);font-size:11.5px;text-align:center;margin-top:20px}
 (function(){
   const style = document.createElement('style'); style.textContent = TenablePull.CSS; document.head.appendChild(style);
   document.getElementById('ver').textContent = 'version ' + TenablePull.VERSION; document.getElementById('ver2').textContent = TenablePull.VERSION;
-  window.TP = TenablePull.mount(document.getElementById('app'), { mode: 'standalone' });
+  window.TP = TenablePull.mount(document.getElementById('app'), { mode: 'standalone', helpOpen: !TenablePull.loadSettings().url });
 })();
 </script>
 </body></html>

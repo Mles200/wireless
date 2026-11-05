@@ -1,6 +1,19 @@
-# Tenable Pull: the lightweight tool
+# Tenable Pull: the fetch step, explained
 
-`studio/Tenable_Pull.html` is one HTML file. Open it, enter the Tenable endpoint and the service account's API keys, check the connection, pull. It produces the two CSV files the Studio reads, with the column layout of the Security Center "Vulnerability Detail List" export, and can open the Studio and load them in one click. The same engine sits behind the **Tenable** button of the Studio (v4.8), which pulls and loads without the separate file. Nothing is installed and nothing leaves the computer except the requests to the endpoint you typed.
+Two files, one job each. **The Studio** (`ALTANFEETHI_Tenable_Report_Studio.html`) makes the report and, since v4.8, fetches the exports itself under its **Tenable** button. **Tenable Pull** (`Tenable_Pull.html`) is a helper that only fetches: the same form, the same pull, but it stops at the two CSV files (download them, or hand them to the Studio with one click). For the weekly report the Studio alone is enough; the helper is for when you want the CSV files on their own. Nothing is installed and nothing leaves the computer except the requests to the endpoint you typed.
+
+## 0. The form, field by field
+
+**Which product do I connect to?** *Tenable Security Center* (Tenable.sc) is the management console, the one with *Analysis › Vulnerabilities*, *Repositories*, *Organizations*, *Accept Risk*, where the CSV exports were taken by hand until now; it keeps the cumulative results with first-seen and last-seen dates. Use this one. *Nessus / Nessus Manager* is the scanner itself (console with *Scans*, *Agents*, *Policies*, port 8834); the agents report to it and Security Center imports from it. Use it only without Security Center: same findings, no history, no Accept/Recast Risk rules. Not sure? Leave Source on *Detect automatically*: Check connection asks the address as Security Center first, then as Nessus, and reports what answered.
+
+| Field | What to enter | Example |
+|---|---|---|
+| Source | *Detect automatically* (recommended), or the product explicitly | |
+| API endpoint | The address you type in the browser to open that console, no path after it; add the port if the console is reached on one. The tool adds `/rest/…` or the Nessus paths itself. | `https://10.70.30.2`, `https://tenable.altanfeethi.local`, `https://10.70.30.2:8000`, `https://10.70.30.2:8834` (Nessus) |
+| Access key, Secret key | API keys of a read-only service account. Security Center: *Users › the user › Generate API Keys* (allowed under *Settings › Configuration › Security › Allow API Keys*; the Auditor role with access to every repository is enough). Nessus: *My Account › API Keys*. The secret is shown once. | |
+| Username, password | Security Center only, instead of keys: a session login like the console's, logged out at the end. Keys are preferred. | |
+| Remember | Unticked: address, access key and options stay in this browser profile, the secret only until the tab is closed. Ticked: the secret is kept too, unencrypted. | |
+| Pull options | Severities (the report uses Critical to Low), inventory rows (keep on), compliance export (keep on), request pacing, repositories or scans to include (listed after Check connection; none ticked = all). Nessus only: a previous VA export to carry the first-seen dates forward. | |
 
 ## 1. What a pull does
 

@@ -39,7 +39,7 @@
     const close = () => { host.hidden = true; host.innerHTML = ''; };
     host.querySelector('.modal').addEventListener('click', e => { if (e.target.classList.contains('modal') && !host.dataset.busy) close(); });
     TenablePull.mount($('#tenablePanel'), {
-      mode: 'studio', onClose: close,
+      mode: 'studio', onClose: close, helpOpen: !(TenablePull.loadSettings().url),   // the explanation stays open until an endpoint has been saved once
       onFiles: async (files, result) => {
         host.dataset.busy = '1';
         try { await addFiles(files); close(); showNotice(`Loaded from ${result.source.type === 'sc' ? 'Tenable Security Center' : 'Nessus'} ${esc(result.source.version || '')}: ${files.map(f => esc(f.name)).join(', ')} (${esc(result.summary)}; ${esc(result.transport || '')}).`); }
