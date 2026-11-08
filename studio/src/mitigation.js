@@ -33,7 +33,9 @@
     }
     for (const h of state.hosts.values()) seen.add(h.ip);
     e.hosts = seen.size; e.hostsAbsent = absent.size;
-    const hist = (RISK_REG.history || []).filter(x => x.date !== date); hist.push(e); hist.sort((a, b) => a.date - b.date);
+    const hist = (RISK_REG.history || []).filter(x => x.date !== date);
+    if (!hist.some(x => x.date < date)) { e.baseline = e.opened; e.opened = 0; }   // the first pull is the baseline: nothing in it is "new"
+    hist.push(e); hist.sort((a, b) => a.date - b.date);
     RISK_REG.history = hist;
   }
   const origRiskSync = window.riskSync;
