@@ -98,7 +98,7 @@ def test_studio_loads_a_pull_through_the_panel(cfg, dataset):
                 assert reg["present"] and len(reg["items"]) == expect["findings"]
             # the HTML report built by the Studio is a plain Studio file: no connector script, data embedded
             report = page.evaluate("buildHtmlReport()")
-            assert "connector.js" not in report and 'id="trs-data"' in report and "STUDIO_VERSION = '4.8'" in report
+            assert "connector.js" not in report and 'id="trs-data"' in report and "STUDIO_VERSION = '4.9'" in report
             # the Studio opened from the report mode must not show the panel: the report mode flag hides the button
             # (the report never contains the script, so simply check the empty-state hint is gone now)
             assert page.evaluate("document.querySelector('#emptyState').hidden") is True

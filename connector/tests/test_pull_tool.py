@@ -94,7 +94,7 @@ def test_tool_pulls_from_a_folder_and_hands_over_to_the_studio(cors_sc, dataset)
         got = studio.evaluate("({findings: state.findings.length, checks: state.checks.length, hosts: state.hosts.size, version: STUDIO_VERSION, files: state.files.map(f => f.name)})")
         exp = studio_expectations(dataset)
         assert got["findings"] == exp["findings"] and got["checks"] == exp["checks"] and got["hosts"] == exp["hosts"], got
-        assert got["version"] == "4.8" and all(n.startswith("SC ") for n in got["files"])
+        assert got["version"] == "4.9" and all(n.startswith("SC ") for n in got["files"])
         assert "sent by Tenable Pull" in studio.inner_text("#notices")
         assert "sent to the Studio" in page.inner_text("#tp_send_status")
         assert not errors, errors

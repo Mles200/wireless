@@ -60,8 +60,10 @@
   /* ---------- CSV ---------- */
   const csvCell = v => { const s = v == null ? '' : String(v); return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
   class CsvFile {
-    constructor(name) { this.name = name; this.parts = ['﻿' + HEADERS.map(csvCell).join(',') + '\r\n']; this.rows = 0; this.hosts = new Set(); this.severity = {}; this.bytes = this.parts[0].length; }
-    add(row) { const line = HEADERS.map(h => csvCell(row[h])).join(',') + '\r\n'; this.parts.push(line); this.rows++; this.bytes += line.length; if (row['IP Address']) this.hosts.add(row['IP Address']); const s = row.Severity || 'Info'; this.severity[s] = (this.severity[s] || 0) + 1; }
+    constructor(name) { this.name = name; this.parts = ['﻿' + HEADERS.map(csvCell).join(',') + '\r\n']; this.rows = 0; this.hosts = new Set(); this.severity = {}; this.bytes = this.parts[0].length; this.dates = []; }
+    add(row) { const line = HEADERS.map(h => csvCell(row[h])).join(',') + '\r\n'; this.parts.push(line); this.rows++; this.bytes += line.length; if (row['IP Address']) this.hosts.add(row['IP Address']); const s = row.Severity || 'Info'; this.severity[s] = (this.severity[s] || 0) + 1; if (row['Last Observed']) this.dates.push(row['Last Observed']); }
+    /* the scan date the Studio will give this file: the 95th percentile of Last Observed (robust to a few stale rows), like the Studio's own dating */
+    scanDate() { if (!this.dates.length) return ''; const d = this.dates.slice().sort(); return d[Math.min(d.length - 1, Math.floor(d.length * 0.95))].slice(0, 10); }
     text() { return this.parts.join(''); }
     blob() { return new Blob(this.parts, { type: 'text/csv' }); }
     file() { return new File(this.parts, this.name, { type: 'text/csv', lastModified: Date.now() }); }
@@ -224,8 +226,10 @@
       counts[name] = { rows: va.rows + cmp.rows - before, seconds: Math.round((Date.now() - t0) / 100) / 10 };
       say(name, `${name}: ${(va.rows + cmp.rows - before).toLocaleString()} rows in ${Math.round((Date.now() - t0) / 1000)} s`);
     }
+    // the files carry the scan date (what the Studio reads from Last Observed), not the day of the pull, so pulls of different scans never share a name
+    const scan = va.scanDate() || cmp.scanDate() || date; if (scan !== date) { va.name = va.name.replace(date, scan); cmp.name = cmp.name.replace(date, scan); }
     const result = { source: { type: 'sc', url: client.base.replace(/\/rest\/$/, ''), version: system.version, build: system.buildID, user: user.username, organization: user.organization && user.organization.name, repositories: (repos.length ? repos : reposAll).map(r => ({ id: r.id, name: r.name, type: r.type })) },
-      date, files: [Object.assign(va.summary(), { kind: 'va', csv: va }), Object.assign(cmp.summary(), { kind: 'compliance', csv: cmp })], counts: Object.assign(counts, { duplicatesSkipped: dup }), warnings, mapping, queries: queries.map(([n, q, p]) => ({ name: n, filters: q.filters, pageSize: p })) };
+      date: scan, pulledOn: date, files: [Object.assign(va.summary(), { kind: 'va', csv: va }), Object.assign(cmp.summary(), { kind: 'compliance', csv: cmp })], counts: Object.assign(counts, { duplicatesSkipped: dup }), warnings, mapping, queries: queries.map(([n, q, p]) => ({ name: n, filters: q.filters, pageSize: p })) };
     if (opts.riskRules) { say('rules', 'Fetching Accept Risk and Recast Risk rules'); try { result.rules = { accept: await client.acceptRiskRules(), recast: await client.recastRiskRules() }; } catch (e) { warnings.push(`risk rules: ${e.message}`); } }
     if (opts.scanResults) { say('scans', 'Fetching recent scan results'); try { result.scans = (await client.scanResults(opts.scanDays)).map(s => ({ id: s.id, name: s.name, status: s.status, finishTime: parseInt(s.finishTime, 10) || null, startTime: parseInt(s.startTime, 10) || null, scannedIPs: s.scannedIPs, totalIPs: s.totalIPs, importStatus: s.importStatus, repository: s.repository && s.repository.name })).sort((a, b) => (b.finishTime || 0) - (a.finishTime || 0)); } catch (e) { warnings.push(`scan results: ${e.message}`); } }
     result.duration = Math.round((Date.now() - started) / 100) / 10; result.transport = client.transport.describe(); result.transportStats = Object.assign({ interval: client.transport.interval }, client.transport.stats);
@@ -345,8 +349,9 @@
       }
       say('export', `Scan ${s.name}: ${n.toLocaleString()} rows`, va.rows + cmp.rows);
     }
+    const scan = va.scanDate() || cmp.scanDate() || date; if (scan !== date) { va.name = va.name.replace(date, scan); cmp.name = cmp.name.replace(date, scan); }
     const result = { source: { type: 'nessus', url: client.base, version: props.server_version, product: props.nessus_type, repositories: chosen.map(s => ({ id: s.id, name: s.name })), scans: chosen.map(s => ({ id: s.id, name: s.name, last_modification_date: s.last_modification_date })) },
-      date, files: [Object.assign(va.summary(), { kind: 'va', csv: va }), Object.assign(cmp.summary(), { kind: 'compliance', csv: cmp })], counts: { duplicatesSkipped: dup, firstSeenNew: newFirst, firstSeenCarried: carried.size }, warnings,
+      date: scan, pulledOn: date, files: [Object.assign(va.summary(), { kind: 'va', csv: va }), Object.assign(cmp.summary(), { kind: 'compliance', csv: cmp })], counts: { duplicatesSkipped: dup, firstSeenNew: newFirst, firstSeenCarried: carried.size }, warnings,
       scans: (listing.scans || []).map(s => ({ id: s.id, name: s.name, status: s.status, finishTime: s.last_modification_date || null, repository: s.name })) };
     result.duration = Math.round((Date.now() - started) / 100) / 10; result.transport = client.transport.describe(); result.transportStats = Object.assign({ interval: client.transport.interval }, client.transport.stats); result.summary = summarize(result);
     say('done', `Pull complete: ${result.summary}`);
@@ -355,7 +360,7 @@
 
   /* ---------- the files for the Studio ---------- */
   const toFiles = result => result.files.map(f => f.csv.file());
-  const manifest = result => ({ pulledAt: new Date().toISOString(), tool: `Tenable Pull ${VERSION}`, source: result.source, date: result.date, files: result.files.map(f => ({ name: f.name, kind: f.kind, rows: f.rows, hosts: f.hosts, severity: f.severity, bytes: f.bytes })), counts: result.counts, warnings: result.warnings, duration: result.duration, summary: result.summary, transport: result.transportStats, queries: result.queries, mapping: result.mapping, rules: result.rules ? { accept: result.rules.accept.length, recast: result.rules.recast.length } : undefined, scans: result.scans ? result.scans.length : undefined });
+  const manifest = result => ({ pulledAt: new Date().toISOString(), pulledOn: result.pulledOn, tool: `Tenable Pull ${VERSION}`, source: result.source, date: result.date, files: result.files.map(f => ({ name: f.name, kind: f.kind, rows: f.rows, hosts: f.hosts, severity: f.severity, bytes: f.bytes })), counts: result.counts, warnings: result.warnings, duration: result.duration, summary: result.summary, transport: result.transportStats, queries: result.queries, mapping: result.mapping, rules: result.rules ? { accept: result.rules.accept.length, recast: result.rules.recast.length } : undefined, scans: result.scans ? result.scans.length : undefined });
 
   /* ---------- settings kept in the browser ---------- */
   const SETTINGS_KEY = 'trs.tenable';

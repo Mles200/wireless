@@ -20,7 +20,7 @@ SRC = ROOT / "studio" / "src"
 STUDIO = ROOT / "studio" / "ALTANFEETHI_Tenable_Report_Studio.html"
 TOOL = ROOT / "studio" / "Tenable_Pull.html"
 START, END = "<!-- trs-tenable:start -->", "<!-- trs-tenable:end -->"
-STUDIO_VERSION = "4.8"
+STUDIO_VERSION = "4.9"
 
 
 def build_tool(engine: str) -> str:
@@ -29,11 +29,11 @@ def build_tool(engine: str) -> str:
     return template.replace("<!-- @engine -->", "<script>\n" + engine + "\n</script>")
 
 
-def build_studio(studio_src: str, engine: str, panel: str) -> str:
+def build_studio(studio_src: str, engine: str, panel: str, mitigation: str = "") -> str:
     if START in studio_src and END in studio_src:
         a, b = studio_src.index(START), studio_src.index(END) + len(END)
         studio_src = studio_src[:a] + studio_src[b:].lstrip("\n")
-    block = f'{START}\n<script id="trs-tenable-engine">\n{engine}\n</script>\n<script id="trs-tenable-panel">\n{panel}\n</script>\n{END}\n'
+    block = f'{START}\n<script id="trs-tenable-engine">\n{engine}\n</script>\n<script id="trs-tenable-panel">\n{panel}\n</script>\n<script id="trs-mitigation">\n{mitigation}\n</script>\n{END}\n'
     at = studio_src.rfind("</body>")
     assert at > 0, "no </body> in the Studio"
     out = studio_src[:at] + block + studio_src[at:]
@@ -45,12 +45,13 @@ def build_studio(studio_src: str, engine: str, panel: str) -> str:
 def main(argv: list[str]) -> int:
     engine = (SRC / "tenable_pull.js").read_text(encoding="utf-8").rstrip()
     panel = (SRC / "studio_panel.js").read_text(encoding="utf-8").rstrip()
-    for name, text in (("engine", engine), ("panel", panel)):
+    mitigation = (SRC / "mitigation.js").read_text(encoding="utf-8").rstrip()
+    for name, text in (("engine", engine), ("panel", panel), ("mitigation", mitigation)):
         if "</script" in text.lower():
             print(f"ERROR: the {name} source contains a </script> sequence; it cannot be inlined")
             return 1
     tool = build_tool(engine)
-    studio = build_studio(STUDIO.read_text(encoding="utf-8"), engine, panel)
+    studio = build_studio(STUDIO.read_text(encoding="utf-8"), engine, panel, mitigation)
     if "--check" in argv:
         ok = TOOL.exists() and TOOL.read_text(encoding="utf-8") == tool and STUDIO.read_text(encoding="utf-8") == studio
         print("built files match the sources" if ok else "built files are out of date: run tools/build_tenable.py")

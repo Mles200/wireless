@@ -48,7 +48,7 @@ def watch(page):
 def test_addon_pages_read_a_server_without_cors(built_extension, mock_sc, dataset):
     expect = dataset_counts(dataset)
     manifest = json.loads((EXT / "manifest.json").read_text())
-    assert manifest["manifest_version"] == 3 and manifest["host_permissions"] == ["https://*/*", "http://*/*"] and manifest["version"].startswith("4.8")
+    assert manifest["manifest_version"] == 3 and manifest["host_permissions"] == ["https://*/*", "http://*/*"] and manifest["version"].startswith("4.9")
     with sync_playwright() as p:
         ctx, ext_id = launch(p)
         try:
@@ -92,7 +92,7 @@ def test_addon_pages_read_a_server_without_cors(built_extension, mock_sc, datase
             # the HTML report is the single-file Studio with the data: inline scripts, no references to the add-on's files
             studio.wait_for_function("SELF_SOURCE.length > 3000000 && !SELF_SOURCE.includes('studio-01.js')", timeout=30000)
             report = studio.evaluate("buildHtmlReport()")
-            assert 'id="trs-data"' in report and "STUDIO_VERSION = '4.8'" in report and 'src="studio-' not in report and "extension_glue" not in report
+            assert 'id="trs-data"' in report and "STUDIO_VERSION = '4.9'" in report and 'src="studio-' not in report and "extension_glue" not in report
             assert report.count("<script") >= 9, "the vendor libraries and the app are inline in the report"
             # PDF and Excel generation work under the extension CSP (pdfmake and ExcelJS fall back cleanly without eval)
             sizes = studio.evaluate("Promise.all([pdfBlob().then(b => b.size), excelBlob(excelParts()[0]).then(b => b.size)])")

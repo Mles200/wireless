@@ -208,6 +208,32 @@ def synth_dataset(opts: SynthOptions | None = None) -> dict:
             "user": {"id": "3", "username": "studio.api", "firstname": "Studio", "lastname": "Connector", "role": {"id": "2", "name": "Security Manager"}, "organization": {"id": "1", "name": "ALTANFEETHI"}}}
 
 
+def evolve_dataset(data: dict, days: int = 14, drop_plugins: tuple = (), drop_hosts: tuple = (), add: list | None = None) -> dict:
+    """A later scan of the same estate: Last Observed moved forward by ``days``, the findings of
+    ``drop_plugins`` gone (mitigated), the hosts in ``drop_hosts`` absent from the scan (not
+    verified), ``add`` records new.  First Discovered of the remaining rows is unchanged."""
+    import copy
+    out = copy.deepcopy(data)
+    shift = days * DAY
+    out["scan_ts"] = data["scan_ts"] + shift
+    recs = []
+    for r in out["records"]:
+        if r["ip"] in drop_hosts:
+            continue
+        if int(r["pluginID"]) in set(int(p) for p in drop_plugins) and r["family"]["type"] != "compliance":
+            continue
+        r["lastSeen"] = str(int(r["lastSeen"]) + shift)
+        recs.append(r)
+    for r in add or []:
+        recs.append(r)
+    out["records"] = recs
+    for s in out["scans"]:
+        s["startTime"] = str(int(s["startTime"]) + shift)
+        s["finishTime"] = str(int(s["finishTime"]) + shift)
+    out["hosts"] = [h for h in out["hosts"] if h["ip"] not in drop_hosts]
+    return out
+
+
 def _applies(p, h) -> bool:
     name = p[1]
     if "Ubuntu" in h["os"]:

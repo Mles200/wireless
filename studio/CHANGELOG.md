@@ -1,5 +1,12 @@
 # Tenable Report Studio — changelog
 
+## 4.9 (8 Nov 2026)
+
+- **Mitigation tab** (between Risk and Report), built on the register: pending (open now) by severity, mitigated since the previous pull / 30 days / 90 days / ever, new, reopened, overdue, hosts in the environment (clean, new), not verified (hosts absent from the pull); charts of open findings and of mitigated / new per pull from the register's history; remediation actions with Done / In progress / Not started and % done; mitigated and pending by vulnerability with the per-host rows (days to fix, within timeline); environment table; hosts not in this pull. Excel **Mitigation tracker** (Summary, Mitigation tracker, Pending, Mitigated, Remediation actions, Environment, Pull history), also added to the Archive with `findings-register.csv`.
+- **Data folder**: a folder on this computer (for example `Desktop\Tenable Data`) keeps every pull (`pulls/<date>/` with the exports, `manifest.json`, `risk-rules.json`), the register as JSON and CSV, the history, and receives the Archive runs (`reports/`). Written automatically after every pull and register change; pulls can be loaded back from it; Download data ZIP without a folder.
+- **Update from Tenable** button on the tab (the Tenable panel) refreshes everything in one go.
+- The register now records a history row per pull.
+
 ## 4.8 (2 Nov 2026)
 
 Built by `tools/build_tenable.py`: the Tenable Pull engine and panel are inlined before `</body>` (markers `trs-tenable:start/end`, replaced on every build); no other line of the Studio changed.

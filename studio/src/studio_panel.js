@@ -42,6 +42,7 @@
       mode: 'studio', onClose: close, helpOpen: !(TenablePull.loadSettings().url),   // the explanation stays open until an endpoint has been saved once
       onFiles: async (files, result) => {
         host.dataset.busy = '1';
+        window.TRS_LAST_PULL = { date: Date.parse(result.date) || Date.now(), manifest: TenablePull.manifest(result), rules: result.rules || null };   // for the data folder
         try { await addFiles(files); close(); showNotice(`Loaded from ${result.source.type === 'sc' ? 'Tenable Security Center' : 'Nessus'} ${esc(result.source.version || '')}: ${files.map(f => esc(f.name)).join(', ')} (${esc(result.summary)}; ${esc(result.transport || '')}).`); }
         finally { host.dataset.busy = ''; }
       },

@@ -45,17 +45,21 @@ Three causes look the same from a page: the certificate is not trusted, the host
 
 "The server is there" means only CORS stands in the way, which is Security Center's default behaviour. **The answer is the browser add-on**: `Tenable_Report_Studio_addon.zip` is the Studio and Tenable Pull packaged as a Chrome / Edge extension; extension pages may call the hosts they declare without the CORS restriction, nothing changes on the server and browser security stays on. Unzip it to a permanent folder, open `edge://extensions` (or `chrome://extensions`), switch on Developer mode, click Load unpacked, choose the folder, then click the copper icon in the toolbar. `docs/TENABLE_PULL.md` section 3 has the details and the alternatives (serving the files from the Security Center web root, CORS headers in its Apache configuration, a dedicated browser profile).
 
-### 5. What you get
+### 5. Mitigation tracking and the data folder
+
+The **Mitigation** tab (Studio 4.9) shows what got mitigated, what is pending, what is new or reopened, and what is in the environment, with a history per pull and an Excel tracker. It is built on the Studio's register of every finding ever seen: a finding is mitigated when it is no longer reported while its host is still scanned; a finding on a host absent from the pull is "not verified". Choose a **data folder** once (for example `Desktop\Tenable Data`): every pull, the register (JSON and CSV), the history and the Archive runs are kept there as plain files, and earlier pulls can be loaded back from it. **Update from Tenable** on the tab runs the pull and refreshes everything. Details: `docs/MITIGATION.md`.
+
+### 6. What you get
 
 Two CSV files with the layout of the Security Center "Vulnerability Detail List" export: `SC VA export <date>.csv` (vulnerabilities Critical to Low, plus the inventory rows that keep hosts without findings listed) and `SC Compliance export <date>.csv` (CIS checks: Info = passed, Medium = warning, High = failed), with `manifest.json` (counts, filters, load figures) and `risk-rules.json` (the Accept/Recast Risk rules at that moment).
 
-### 6. Not breaking Security Center
+### 7. Not breaking Security Center
 
 Every analysis page is a database query, so the pull sends one request at a time, waits between requests (Gentle 2 s, Normal 0.75 s, Fast 0.15 s), uses moderate pages (1,000 / 500 rows), times a request out after 2 minutes and backs off on 429 / 503, honouring Retry-After. A pull of the current estate is roughly 75 requests. Run it outside the scan windows.
 
-| Tenable Pull | After the pull | The Studio's Tenable button |
-|---|---|---|
-| ![Tenable Pull](docs/img/tenable-pull.png) | ![Result](docs/img/tenable-pull-result.png) | ![Studio](docs/img/studio-tenable.png) |
+| Tenable Pull | After the pull | The Studio's Tenable button | The Mitigation tab |
+|---|---|---|---|
+| ![Tenable Pull](docs/img/tenable-pull.png) | ![Result](docs/img/tenable-pull-result.png) | ![Studio](docs/img/studio-tenable.png) | ![Mitigation](docs/img/mitigation.png) |
 
 ## Repository layout
 
@@ -68,6 +72,7 @@ Every analysis page is a database query, so the pull sends one request at a time
 | `studio/extension-src/`, `tools/build_extension.py` | the browser add-on (manifest, popup, glue) and its build into `dist/extension/` and `dist/Tenable_Report_Studio_addon.zip`; `--hosts` narrows the hosts it may call |
 | `tools/patch_studio.py` | the v4.7 fixes to the Studio as exact, verifiable patches |
 | `docs/TENABLE_PULL.md` | the full guide: set-up, where to run the file, pacing, troubleshooting |
+| `docs/MITIGATION.md` | the Mitigation tab, the register rules and the data folder |
 | `docs/REVIEW.md` | the application review of v4.6: architecture, strengths, findings, recommendations |
 | `docs/ARCHITECTURE.md` | how the pull works and how it hooks into the Studio |
 | `docs/ROADMAP.md` | what comes next |

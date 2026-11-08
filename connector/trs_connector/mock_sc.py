@@ -42,7 +42,9 @@ def create_mock_app(data: dict, access_key: str = "ak", secret_key: str = "sk", 
             return Response(status_code=204, headers=cors_headers)
         hdr = request.headers.get("x-apikey", "")
         pairs = dict(p.strip().split("=", 1) for p in hdr.split(";") if "=" in p)
-        if pairs.get("accessKey") != access_key or pairs.get("secretKey") != secret_key:
+        if not request.url.path.startswith("/rest/"):
+            resp = await call_next(request)        # /healthz and static files mounted by the tests
+        elif pairs.get("accessKey") != access_key or pairs.get("secretKey") != secret_key:
             resp = error(2, "Invalid API key", 403)
         elif rate_limit_every and request.url.path == "/rest/analysis" and request.method == "POST":
             app.state.analysis_requests += 1
@@ -58,33 +60,37 @@ def create_mock_app(data: dict, access_key: str = "ak", secret_key: str = "sk", 
                 resp.headers[k] = v
         return resp
 
+    def current() -> dict:
+        return app.state.data      # tests may swap the dataset between two pulls (a later scan)
+
     @app.get("/rest/system")
     async def system():
-        return envelope(data["system"])
+        return envelope(current()["system"])
 
     @app.get("/rest/currentUser")
     async def current_user():
-        return envelope(data["user"])
+        return envelope(current()["user"])
 
     @app.get("/rest/repository")
     async def repository():
-        return envelope(data["repositories"])
+        return envelope(current()["repositories"])
 
     @app.get("/rest/acceptRiskRule")
     async def accept_rules():
-        return envelope(data["accept_rules"])
+        return envelope(current()["accept_rules"])
 
     @app.get("/rest/recastRiskRule")
     async def recast_rules():
-        return envelope(data["recast_rules"])
+        return envelope(current()["recast_rules"])
 
     @app.get("/rest/scanResult")
     async def scan_results(startTime: str = "0"):
         since = int(startTime or 0)
-        return envelope([s for s in data["scans"] if int(s["finishTime"]) >= since])
+        return envelope([s for s in current()["scans"] if int(s["finishTime"]) >= since])
 
     @app.post("/rest/analysis")
     async def analysis(request: Request):
+        data = current()
         body = await request.json()
         app.state.calls.append(body)
         q = body.get("query") or {}
